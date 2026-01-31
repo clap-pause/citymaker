@@ -1,0 +1,166 @@
+.metrics-display {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.metrics-display h2 {
+  color: #333;
+  margin-bottom: 25px;
+  font-size: 2em;
+  text-align: center;
+}
+
+.global-settings {
+  margin-bottom: 30px;
+}
+
+.investment-setting {
+  margin-bottom: 15px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.investment-setting:last-child {
+  margin-bottom: 0;
+}
+
+.investment-setting label {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+.investment-setting input[type="range"] {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: #e0e0e0;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.investment-setting input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #667eea;
+  cursor: pointer;
+}
+
+.investment-setting input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #667eea;
+  cursor: pointer;
+  border: none;
+}
+
+.metrics-section {
+  margin-bottom: 30px;
+}
+
+.metrics-section h3 {
+  color: #555;
+  font-size: 1.3em;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.metric-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+  padding: 20px;
+  color: white;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+}
+
+.metric-card:hover {
+  transform: translateY(-5px);
+}
+
+.metric-card.livability-card {
+  grid-column: span 2;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.metric-label {
+  font-size: 0.9em;
+  opacity: 0.9;
+  margin-bottom: 10px;
+}
+
+.metric-value {
+  font-size: 2em;
+  font-weight: bold;
+}
+
+.metric-value.positive {
+  color: #2ecc71;
+}
+
+.metric-value.negative {
+  color: #e74c3c;
+}
+
+.livability-score {
+  font-size: 2.5em !important;
+  margin-bottom: 10px;
+}
+
+.livability-text {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.info-item span:first-child {
+  color: #666;
+}
+
+.info-item span:last-child {
+  color: #333;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .metric-card.livability-card {
+    grid-column: span 1;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
