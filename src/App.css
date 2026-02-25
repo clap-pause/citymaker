@@ -14,22 +14,11 @@
 }
 
 .header-content {
-  position: relative;
   width: 100%;
 }
 
 .header-text {
   text-align: center;
-}
-
-.header-actions {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
 }
 
 .view-mode-selector {
