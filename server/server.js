@@ -79,7 +79,7 @@ app.post('/api/session', async (req, res) => {
 // 도시 데이터 저장
 app.post('/api/cities', async (req, res) => {
   try {
-    const { sessionId, blockBuildings, affordableRatio, environmentInvestment, cityName } = req.body;
+    const { sessionId, blockBuildings, tileBuildings, affordableRatio, environmentInvestment, cityName } = req.body;
     
     if (!sessionId) {
       return res.status(400).json({ error: '세션 ID가 필요합니다' });
@@ -89,6 +89,7 @@ app.post('/api/cities', async (req, res) => {
       sessionId,
       cityName: cityName || `도시_${new Date().toISOString().slice(0, 10)}`,
       blockBuildings: blockBuildings || {},
+      tileBuildings: tileBuildings || {}, // 위치 정보 포함
       affordableRatio: affordableRatio || 0,
       environmentInvestment: environmentInvestment || 0,
       createdAt: new Date(),
@@ -146,6 +147,7 @@ app.get('/api/cities/:sessionId', async (req, res) => {
       sessionId: city.sessionId,
       cityName: city.cityName,
       blockBuildings: city.blockBuildings,
+      tileBuildings: city.tileBuildings || {}, // 위치 정보 포함
       affordableRatio: city.affordableRatio,
       environmentInvestment: city.environmentInvestment,
       createdAt: city.createdAt,

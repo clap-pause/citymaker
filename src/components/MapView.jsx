@@ -5,16 +5,18 @@ import { calculateMetrics } from '../utils/calculations';
 import { getBuildingTiles, getBuildingBounds } from '../utils/buildingShapes';
 import { getBuildingPatternStyle } from '../utils/buildingVisuals';
 import MetricsDisplay from './MetricsDisplay';
+import MapView3D from './MapView3D';
 import './MapView.css';
 
 export default function MapView({ 
-  blockBuildings, 
-  onBuildingsChange,
+  tileBuildings: externalTileBuildings,
+  onTileBuildingsChange,
   affordableRatio,
   onAffordableRatioChange,
   environmentInvestment,
   onEnvironmentInvestmentChange 
 }) {
+  const [viewMode3D, setViewMode3D] = useState(false); // 2D/3D 뷰 전환
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [buildingRotation, setBuildingRotation] = useState(0); // 회전 각도 (0, 90, 180, 270)
   const [hoveredTile, setHoveredTile] = useState(null);
@@ -26,7 +28,21 @@ export default function MapView({
   const removedInstanceRef = useRef(null); // { instanceId, tilesSnapshot }
 
   // 타일별 건물 배치 상태 { "blockId-x-y": { buildingId, rotation, instanceId } }
-  const [tileBuildings, setTileBuildings] = useState({});
+  // 외부에서 전달된 tileBuildings가 있으면 사용, 없으면 로컬 상태 사용
+  const [localTileBuildings, setLocalTileBuildings] = useState({});
+  const tileBuildings = externalTileBuildings !== undefined ? externalTileBuildings : localTileBuildings;
+  
+  const setTileBuildings = (newTiles) => {
+    if (externalTileBuildings !== undefined) {
+      // 외부에서 관리하는 경우
+      onTileBuildingsChange(newTiles);
+    } else {
+      // 로컬에서 관리하는 경우
+      setLocalTileBuildings(newTiles);
+    }
+  };
+
+  // blockBuildings 동기화 제거 - 맵 배치 모드는 독립적으로 동작
 
   // R 키로 회전 (드래그 중/선택 중)
   useEffect(() => {
@@ -86,6 +102,8 @@ export default function MapView({
     return true;
   };
 
+  // blockBuildings 동기화 제거 - 맵 배치 모드는 독립적으로 동작
+
   // 타일 클릭 핸들러
   const handleTileClick = (block, tileX, tileY) => {
     if (!selectedBuilding) return;
@@ -107,7 +125,6 @@ export default function MapView({
     });
     
     setTileBuildings(newTileBuildings);
-    updateBlockBuildings(newTileBuildings);
   };
 
   // 드래그 시작
@@ -197,7 +214,6 @@ export default function MapView({
       });
       
       setTileBuildings(newTileBuildings);
-      updateBlockBuildings(newTileBuildings);
     }
     
     setDraggingBuilding(null);
@@ -212,46 +228,6 @@ export default function MapView({
     setBuildingRotation((prev) => (prev + 90) % 360);
   };
 
-  // 블록별 건물 개수 업데이트
-  const updateBlockBuildings = (newTileBuildings) => {
-    const convertedBuildings = {};
-    
-    MAP_LAYOUT.blocks.forEach(block => {
-      const instanceGroups = {}; // { instanceId: { buildingId, tiles:Set } }
-      
-      for (let y = 0; y < block.height; y++) {
-        for (let x = 0; x < block.width; x++) {
-          const tileKey = `${block.id}-${x}-${y}`;
-          const tileData = newTileBuildings[tileKey];
-          
-          if (tileData) {
-            const { buildingId, instanceId } = tileData;
-            if (!instanceGroups[instanceId]) {
-              instanceGroups[instanceId] = { buildingId, tiles: new Set() };
-            }
-            instanceGroups[instanceId].tiles.add(tileKey);
-          }
-        }
-      }
-      
-      const buildings = [];
-      const counts = {};
-      Object.values(instanceGroups).forEach(({ buildingId }) => {
-        counts[buildingId] = (counts[buildingId] || 0) + 1;
-      });
-      Object.entries(counts).forEach(([buildingId, count]) => {
-        buildings.push({ buildingId, count });
-      });
-      
-      if (buildings.length > 0) {
-        convertedBuildings[block.id] = buildings;
-      } else {
-        convertedBuildings[block.id] = [];
-      }
-    });
-    
-    onBuildingsChange(convertedBuildings);
-  };
 
   // 타일 삭제 (우클릭)
   const handleTileRightClick = (e, block, tileX, tileY) => {
@@ -277,7 +253,6 @@ export default function MapView({
         }
         
         setTileBuildings(newTileBuildings);
-        updateBlockBuildings(newTileBuildings);
       }
     }
   };
@@ -355,11 +330,68 @@ export default function MapView({
     setHoveredTile({ blockId: block.id, x: tileX, y: tileY });
   };
 
+  // 3D 뷰 모드일 때
+  if (viewMode3D) {
+    return (
+      <div className="map-view-container">
+        <div className="map-sidebar">
+          <div className="building-selector">
+            <h3>3D 뷰</h3>
+            <button
+              onClick={() => setViewMode3D(false)}
+              className="view-toggle-btn"
+              style={{
+                width: '100%',
+                padding: '12px',
+                marginBottom: '15px',
+                backgroundColor: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '1em',
+                fontWeight: '600',
+              }}
+            >
+              📐 2D 뷰로 전환
+            </button>
+            <div className="help-text" style={{ fontSize: '0.85em', color: '#666', marginBottom: '10px', padding: '8px', background: '#f0f0f0', borderRadius: '4px' }}>
+              💡 마우스로 드래그하여 카메라를 회전하고, 휠로 확대/축소할 수 있습니다
+            </div>
+          </div>
+        </div>
+        <div className="map-content-wrapper" style={{ marginRight: 0 }}>
+          <div className="map-main" style={{ width: '100%', height: '100%', margin: 0, padding: 0 }}>
+            <MapView3D tileBuildings={tileBuildings} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="map-view-container">
       <div className="map-sidebar">
         <div className="building-selector">
           <h3>건물 선택</h3>
+          <button
+            onClick={() => setViewMode3D(true)}
+            className="view-toggle-btn"
+            style={{
+              width: '100%',
+              padding: '12px',
+              marginBottom: '15px',
+              backgroundColor: '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '1em',
+              fontWeight: '600',
+            }}
+          >
+            🏗️ 3D 뷰로 전환
+          </button>
           <div className="help-text" style={{ fontSize: '0.85em', color: '#666', marginBottom: '10px', padding: '8px', background: '#f0f0f0', borderRadius: '4px' }}>
             💡 팁: 건물을 우클릭하면 제거됩니다
           </div>

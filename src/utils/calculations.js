@@ -89,8 +89,10 @@ export function calculateMetrics(blockBuildings, affordableRatio = 0, environmen
     ? (totalAffordableHousing / totalHousing) * 100 
     : 0;
 
-  // 환경 투자에 따른 탄소 배출 감소 (투자 1억원당 1% 감소, 최대 2% 감소)
-  const carbonReduction = Math.min(environmentInvestment / 100000000, 2);
+  // 환경 투자에 따른 탄소 배출 감소 (투자 1억원당 2% 감소, 최대 10% 감소)
+  // 비선형 효과: 투자액이 많을수록 더 큰 효과
+  const investmentInBillions = environmentInvestment / 100000000; // 억원 단위
+  const carbonReduction = Math.min(investmentInBillions * 2, 10); // 1억원당 2% 감소, 최대 10% 감소
   const adjustedCarbonEmission = totalCarbonEmission * (1 - carbonReduction / 100);
 
   // 탄소 배출 "지표"를 이해하기 쉽게 0~100 지수로 변환합니다. (낮을수록 좋음)
