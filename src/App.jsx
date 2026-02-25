@@ -172,12 +172,12 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <div>
+        <div className="header-content">
+          <div className="header-text">
             <h1>🏙️ 도시 개발 시뮬레이터</h1>
             <p>각 블록에 건물을 배치하고 도시의 지표를 확인하세요</p>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+          <div className="header-actions">
             <button 
               onClick={handleManualSave}
               style={{
