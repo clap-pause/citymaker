@@ -1,16 +1,23 @@
 .metrics-display {
   background: white;
   border-radius: 12px;
-  padding: 30px;
-  margin-bottom: 20px;
+  padding: 20px;
+  margin-bottom: 0;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  height: 100%;
+  overflow-y: auto;
 }
 
 .metrics-display h2 {
   color: #333;
-  margin-bottom: 25px;
-  font-size: 2em;
+  margin-bottom: 20px;
+  font-size: 1.5em;
   text-align: center;
+  position: sticky;
+  top: 0;
+  background: white;
+  padding-bottom: 10px;
+  z-index: 5;
 }
 
 .global-settings {
@@ -18,8 +25,8 @@
 }
 
 .investment-setting {
-  margin-bottom: 15px;
-  padding: 20px;
+  margin-bottom: 12px;
+  padding: 12px;
   background: #f8f9fa;
   border-radius: 8px;
 }
@@ -65,30 +72,30 @@
 }
 
 .metrics-section {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 
 .metrics-section h3 {
   color: #555;
-  font-size: 1.3em;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
+  font-size: 1.1em;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
   border-bottom: 2px solid #e0e0e0;
 }
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
 }
 
 .metric-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 10px;
-  padding: 20px;
+  border-radius: 8px;
+  padding: 12px;
   color: white;
   text-align: center;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s;
 }
 
@@ -99,16 +106,18 @@
 .metric-card.livability-card {
   grid-column: span 2;
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  padding: 15px;
 }
 
 .metric-label {
-  font-size: 0.9em;
+  font-size: 0.8em;
   opacity: 0.9;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
+  line-height: 1.2;
 }
 
 .metric-value {
-  font-size: 2em;
+  font-size: 1.4em;
   font-weight: bold;
 }
 
@@ -121,29 +130,30 @@
 }
 
 .livability-score {
-  font-size: 2.5em !important;
-  margin-bottom: 10px;
+  font-size: 2em !important;
+  margin-bottom: 8px;
 }
 
 .livability-text {
-  font-size: 1.1em;
+  font-size: 0.9em;
   font-weight: 600;
-  margin-top: 10px;
+  margin-top: 6px;
 }
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
 }
 
 .info-item {
   display: flex;
   justify-content: space-between;
-  padding: 15px;
+  padding: 10px;
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 500;
+  font-size: 0.85em;
 }
 
 .info-item span:first-child {
@@ -153,6 +163,25 @@
 .info-item span:last-child {
   color: #333;
   font-weight: 600;
+}
+
+/* 스크롤바 스타일링 */
+.metrics-display::-webkit-scrollbar {
+  width: 8px;
+}
+
+.metrics-display::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.metrics-display::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.metrics-display::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 @media (max-width: 768px) {

@@ -404,184 +404,186 @@ export default function MapView({
         </div>
       </div>
 
-      <div 
-        className="map-main"
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        ref={mapContainerRef}
-      >
+      <div className="map-content-wrapper">
         <div 
-          className="map-container"
-          style={{
-            '--map-width': MAP_LAYOUT.mapWidth,
-            '--map-height': MAP_LAYOUT.mapHeight,
-          }}
+          className="map-main"
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          ref={mapContainerRef}
         >
-          {MAP_LAYOUT.blocks.map(block => (
-            <div
-              key={block.id}
-              className="map-block"
-              style={{
-                left: `${block.x * MAP_LAYOUT.tileSize}px`,
-                top: `${block.y * MAP_LAYOUT.tileSize}px`,
-                gridTemplateColumns: `repeat(${block.width}, ${MAP_LAYOUT.tileSize}px)`,
-                gridTemplateRows: `repeat(${block.height}, ${MAP_LAYOUT.tileSize}px)`,
-              }}
-            >
-              <div className="block-label">{block.name}</div>
-              {Array.from({ length: block.height }).map((_, y) =>
-                Array.from({ length: block.width }).map((_, x) => {
-                  const tileKey = `${block.id}-${x}-${y}`;
-                  const tileData = tileBuildings[tileKey];
-                  const building = tileData ? BUILDINGS[tileData.buildingId] : null;
-                  
-                  // 기존 건물 영역인지 확인
-                  const isExisting = block.existingBuildings.some(eb => 
-                    x >= eb.x && x < eb.x + eb.width &&
-                    y >= eb.y && y < eb.y + eb.height
-                  );
-                  
-                  // 건물의 시작 타일인지 확인 (이 타일이 건물의 최소 좌표인지)
-                  let isBuildingStart = false;
-                  if (tileData) {
-                    // 이 건물의 모든 타일 중 가장 작은 좌표 찾기
-                    let minX = x, minY = y;
-                    for (let checkY = 0; checkY < block.height; checkY++) {
-                      for (let checkX = 0; checkX < block.width; checkX++) {
-                        const checkKey = `${block.id}-${checkX}-${checkY}`;
-                        const checkData = tileBuildings[checkKey];
-                        if (checkData?.instanceId && checkData.instanceId === tileData.instanceId) {
-                          if (checkX < minX || (checkX === minX && checkY < minY)) {
-                            minX = checkX;
-                            minY = checkY;
+          <div 
+            className="map-container"
+            style={{
+              '--map-width': MAP_LAYOUT.mapWidth,
+              '--map-height': MAP_LAYOUT.mapHeight,
+            }}
+          >
+            {MAP_LAYOUT.blocks.map(block => (
+              <div
+                key={block.id}
+                className="map-block"
+                style={{
+                  left: `${block.x * MAP_LAYOUT.tileSize}px`,
+                  top: `${block.y * MAP_LAYOUT.tileSize}px`,
+                  gridTemplateColumns: `repeat(${block.width}, ${MAP_LAYOUT.tileSize}px)`,
+                  gridTemplateRows: `repeat(${block.height}, ${MAP_LAYOUT.tileSize}px)`,
+                }}
+              >
+                <div className="block-label">{block.name}</div>
+                {Array.from({ length: block.height }).map((_, y) =>
+                  Array.from({ length: block.width }).map((_, x) => {
+                    const tileKey = `${block.id}-${x}-${y}`;
+                    const tileData = tileBuildings[tileKey];
+                    const building = tileData ? BUILDINGS[tileData.buildingId] : null;
+                    
+                    // 기존 건물 영역인지 확인
+                    const isExisting = block.existingBuildings.some(eb => 
+                      x >= eb.x && x < eb.x + eb.width &&
+                      y >= eb.y && y < eb.y + eb.height
+                    );
+                    
+                    // 건물의 시작 타일인지 확인 (이 타일이 건물의 최소 좌표인지)
+                    let isBuildingStart = false;
+                    if (tileData) {
+                      // 이 건물의 모든 타일 중 가장 작은 좌표 찾기
+                      let minX = x, minY = y;
+                      for (let checkY = 0; checkY < block.height; checkY++) {
+                        for (let checkX = 0; checkX < block.width; checkX++) {
+                          const checkKey = `${block.id}-${checkX}-${checkY}`;
+                          const checkData = tileBuildings[checkKey];
+                          if (checkData?.instanceId && checkData.instanceId === tileData.instanceId) {
+                            if (checkX < minX || (checkX === minX && checkY < minY)) {
+                              minX = checkX;
+                              minY = checkY;
+                            }
                           }
                         }
                       }
-                    }
-                    isBuildingStart = (x === minX && y === minY);
-                  }
-                  
-                  const isHovered = hoveredTile?.blockId === block.id && 
-                    hoveredTile?.x === x && hoveredTile?.y === y;
-                  
-                  // 드래그 중이거나 선택된 건물이 있을 때 프리뷰 계산
-                  const previewBuilding = selectedBuilding || draggingBuilding || draggingInstance?.buildingId;
-                  const previewRotation = draggingInstance?.rotation ?? buildingRotation;
-                  
-                  // 프리뷰 타일 계산 (호버된 타일을 기준으로 건물 전체 모양 계산)
-                  let previewTiles = [];
-                  let isPreview = false;
-                  let isPreviewStart = false;
-                  let canPlacePreview = false;
-                  
-                  if (previewBuilding && hoveredTile?.blockId === block.id) {
-                    // 호버된 타일을 기준으로 건물의 모든 타일 위치 계산
-                    previewTiles = getBuildingTilePositions(
-                      BUILDINGS[previewBuilding], 
-                      previewRotation, 
-                      hoveredTile.x, 
-                      hoveredTile.y
-                    );
-                    isPreview = previewTiles.some(pt => pt.x === x && pt.y === y);
-                    
-                    // 프리뷰의 시작 타일인지 확인
-                    if (isPreview && previewTiles.length > 0) {
-                      const firstTile = previewTiles[0];
-                      isPreviewStart = (x === firstTile.x && y === firstTile.y);
+                      isBuildingStart = (x === minX && y === minY);
                     }
                     
-                    if (isPreview) {
-                      canPlacePreview = canPlaceBuildingAt(
-                        block, 
-                        hoveredTile.x, 
-                        hoveredTile.y, 
+                    const isHovered = hoveredTile?.blockId === block.id && 
+                      hoveredTile?.x === x && hoveredTile?.y === y;
+                    
+                    // 드래그 중이거나 선택된 건물이 있을 때 프리뷰 계산
+                    const previewBuilding = selectedBuilding || draggingBuilding || draggingInstance?.buildingId;
+                    const previewRotation = draggingInstance?.rotation ?? buildingRotation;
+                    
+                    // 프리뷰 타일 계산 (호버된 타일을 기준으로 건물 전체 모양 계산)
+                    let previewTiles = [];
+                    let isPreview = false;
+                    let isPreviewStart = false;
+                    let canPlacePreview = false;
+                    
+                    if (previewBuilding && hoveredTile?.blockId === block.id) {
+                      // 호버된 타일을 기준으로 건물의 모든 타일 위치 계산
+                      previewTiles = getBuildingTilePositions(
                         BUILDINGS[previewBuilding], 
-                        previewRotation
+                        previewRotation, 
+                        hoveredTile.x, 
+                        hoveredTile.y
                       );
+                      isPreview = previewTiles.some(pt => pt.x === x && pt.y === y);
+                      
+                      // 프리뷰의 시작 타일인지 확인
+                      if (isPreview && previewTiles.length > 0) {
+                        const firstTile = previewTiles[0];
+                        isPreviewStart = (x === firstTile.x && y === firstTile.y);
+                      }
+                      
+                      if (isPreview) {
+                        canPlacePreview = canPlaceBuildingAt(
+                          block, 
+                          hoveredTile.x, 
+                          hoveredTile.y, 
+                          BUILDINGS[previewBuilding], 
+                          previewRotation
+                        );
+                      }
                     }
-                  }
 
-                  // 건물 스타일 적용
-                  let buildingStyle = {};
-                  if (building && tileData) {
-                    const patternStyle = getBuildingPatternStyle(building, tileData.rotation || 0);
-                    buildingStyle = {
-                      ...patternStyle,
-                      border: `2px solid ${patternStyle.borderColor}`,
-                    };
-                  }
+                    // 건물 스타일 적용
+                    let buildingStyle = {};
+                    if (building && tileData) {
+                      const patternStyle = getBuildingPatternStyle(building, tileData.rotation || 0);
+                      buildingStyle = {
+                        ...patternStyle,
+                        border: `2px solid ${patternStyle.borderColor}`,
+                      };
+                    }
 
-                  // 미리보기 스타일
-                  let previewStyle = {};
-                  if (isPreview && previewBuilding) {
-                    const previewBuildingData = BUILDINGS[previewBuilding];
-                    const patternStyle = getBuildingPatternStyle(previewBuildingData, previewRotation);
-                    previewStyle = {
-                      ...patternStyle,
-                      opacity: canPlacePreview ? 0.85 : 0.5,
-                      border: canPlacePreview 
-                        ? `3px dashed ${patternStyle.borderColor}` 
-                        : `3px dashed #ff0000`,
-                      boxShadow: canPlacePreview 
-                        ? `0 0 10px ${patternStyle.borderColor}, inset 0 0 5px rgba(255,255,255,0.3)` 
-                        : '0 0 10px #ff0000',
-                      zIndex: 100,
-                      transform: 'scale(1.02)',
-                    };
-                  }
+                    // 미리보기 스타일
+                    let previewStyle = {};
+                    if (isPreview && previewBuilding) {
+                      const previewBuildingData = BUILDINGS[previewBuilding];
+                      const patternStyle = getBuildingPatternStyle(previewBuildingData, previewRotation);
+                      previewStyle = {
+                        ...patternStyle,
+                        opacity: canPlacePreview ? 0.85 : 0.5,
+                        border: canPlacePreview 
+                          ? `3px dashed ${patternStyle.borderColor}` 
+                          : `3px dashed #ff0000`,
+                        boxShadow: canPlacePreview 
+                          ? `0 0 10px ${patternStyle.borderColor}, inset 0 0 5px rgba(255,255,255,0.3)` 
+                          : '0 0 10px #ff0000',
+                        zIndex: 100,
+                        transform: 'scale(1.02)',
+                      };
+                    }
 
-                  // 스타일 병합 (미리보기가 있으면 미리보기 스타일 우선)
-                  const finalStyle = isPreview && Object.keys(previewStyle).length > 0 
-                    ? previewStyle 
-                    : buildingStyle;
+                    // 스타일 병합 (미리보기가 있으면 미리보기 스타일 우선)
+                    const finalStyle = isPreview && Object.keys(previewStyle).length > 0 
+                      ? previewStyle 
+                      : buildingStyle;
 
-                  return (
-                    <div
-                      key={`${x}-${y}`}
-                      className={`map-tile ${isExisting ? 'existing' : ''} ${building ? 'has-building' : ''} ${isPreview ? (canPlacePreview ? 'preview-valid' : 'preview-invalid') : ''}`}
-                      style={finalStyle}
-                      onClick={() => handleTileClick(block, x, y)}
-                      onContextMenu={(e) => handleTileRightClick(e, block, x, y)}
-                      onMouseDown={(e) => {
-                        // 배치된 건물의 시작 타일을 잡고 드래그해서 이동
-                        if (e.button === 0 && isBuildingStart && building && tileData?.instanceId) {
-                          e.preventDefault();
-                          startDragExistingInstance(block, x, y);
-                        }
-                      }}
-                      onMouseEnter={() => setHoveredTile({ blockId: block.id, x, y })}
-                      onMouseLeave={() => setHoveredTile(null)}
-                      title={building ? `${building.name} (${building.size}칸) - 우클릭으로 제거` : isExisting ? '기존 건물' : '빈 공간'}
-                    >
-                      {isBuildingStart && building && (
-                        <div className="building-label">
-                          {building.name}
-                        </div>
-                      )}
-                      {/* 프리뷰 시작 타일에도 라벨 표시 (객체처럼 보이게) */}
-                      {!building && isPreviewStart && previewBuilding && (
-                        <div className="building-label preview-label">
-                          {BUILDINGS[previewBuilding]?.name}
-                          {previewRotation !== 0 && ` (${previewRotation}°)`}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          ))}
+                    return (
+                      <div
+                        key={`${x}-${y}`}
+                        className={`map-tile ${isExisting ? 'existing' : ''} ${building ? 'has-building' : ''} ${isPreview ? (canPlacePreview ? 'preview-valid' : 'preview-invalid') : ''}`}
+                        style={finalStyle}
+                        onClick={() => handleTileClick(block, x, y)}
+                        onContextMenu={(e) => handleTileRightClick(e, block, x, y)}
+                        onMouseDown={(e) => {
+                          // 배치된 건물의 시작 타일을 잡고 드래그해서 이동
+                          if (e.button === 0 && isBuildingStart && building && tileData?.instanceId) {
+                            e.preventDefault();
+                            startDragExistingInstance(block, x, y);
+                          }
+                        }}
+                        onMouseEnter={() => setHoveredTile({ blockId: block.id, x, y })}
+                        onMouseLeave={() => setHoveredTile(null)}
+                        title={building ? `${building.name} (${building.size}칸) - 우클릭으로 제거` : isExisting ? '기존 건물' : '빈 공간'}
+                      >
+                        {isBuildingStart && building && (
+                          <div className="building-label">
+                            {building.name}
+                          </div>
+                        )}
+                        {/* 프리뷰 시작 타일에도 라벨 표시 (객체처럼 보이게) */}
+                        {!building && isPreviewStart && previewBuilding && (
+                          <div className="building-label preview-label">
+                            {BUILDINGS[previewBuilding]?.name}
+                            {previewRotation !== 0 && ` (${previewRotation}°)`}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <div className="map-metrics">
-        <MetricsDisplay
-          metrics={metrics}
-          affordableRatio={affordableRatio}
-          onAffordableRatioChange={onAffordableRatioChange}
-          environmentInvestment={environmentInvestment}
-          onEnvironmentInvestmentChange={onEnvironmentInvestmentChange}
-        />
+        <div className="map-metrics">
+          <MetricsDisplay
+            metrics={metrics}
+            affordableRatio={affordableRatio}
+            onAffordableRatioChange={onAffordableRatioChange}
+            environmentInvestment={environmentInvestment}
+            onEnvironmentInvestmentChange={onEnvironmentInvestmentChange}
+          />
+        </div>
       </div>
     </div>
   );

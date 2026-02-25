@@ -1,8 +1,19 @@
 .map-view-container {
   display: flex;
-  flex-direction: column;
-  height: 100vh;
+  flex-direction: row;
+  height: calc(100vh - 200px);
   background: #f0f0f0;
+  overflow: hidden;
+}
+
+.map-content-wrapper {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  margin-left: 250px;
+  overflow: hidden;
+  gap: 20px;
+  padding: 20px;
 }
 
 .map-sidebar {
@@ -108,10 +119,12 @@
 }
 
 .map-main {
-  margin-left: 250px;
-  padding: 20px;
-  overflow: auto;
   flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: auto;
+  min-width: 0;
 }
 
 .map-container {
@@ -122,6 +135,7 @@
   min-width: 800px;
   width: calc(var(--map-width, 27) * 30px);
   height: calc(var(--map-height, 20) * 30px);
+  margin: 0 auto;
 }
 
 .map-block {
@@ -218,12 +232,38 @@
 }
 
 .map-metrics {
-  margin-left: 250px;
+  width: 400px;
+  min-width: 400px;
+  max-width: 400px;
   padding: 20px;
   background: white;
-  border-top: 2px solid #ddd;
-  max-height: 40vh;
+  border-left: 2px solid #ddd;
   overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
+}
+
+/* 스크롤바 스타일링 */
+.map-metrics::-webkit-scrollbar,
+.map-main::-webkit-scrollbar {
+  width: 8px;
+}
+
+.map-metrics::-webkit-scrollbar-track,
+.map-main::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.map-metrics::-webkit-scrollbar-thumb,
+.map-main::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.map-metrics::-webkit-scrollbar-thumb:hover,
+.map-main::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 @media (max-width: 1200px) {
@@ -231,8 +271,21 @@
     width: 200px;
   }
   
-  .map-main,
-  .map-metrics {
+  .map-content-wrapper {
     margin-left: 200px;
+  }
+  
+  .map-metrics {
+    width: 350px;
+    min-width: 350px;
+    max-width: 350px;
+  }
+}
+
+@media (max-width: 1600px) {
+  .map-metrics {
+    width: 350px;
+    min-width: 350px;
+    max-width: 350px;
   }
 }
