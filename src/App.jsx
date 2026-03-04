@@ -25,19 +25,21 @@ function App() {
   // 위치 정보를 유지하기 위해 별도로 관리
   const [tileBuildings, setTileBuildings] = useState({});
   
-  // 전체 저렴한 주거 비율 (0-1)
-  const [affordableRatio, setAffordableRatio] = useState(0);
-  
-  // 환경 기술 투자 비용
-  const [environmentInvestment, setEnvironmentInvestment] = useState(0);
+  // 블록 편집 모드용 저렴한 주거 비율 / 환경 투자
+  const [blockAffordableRatio, setBlockAffordableRatio] = useState(0);
+  const [blockEnvironmentInvestment, setBlockEnvironmentInvestment] = useState(0);
+
+  // 맵 배치 모드용 저렴한 주거 비율 / 환경 투자
+  const [mapAffordableRatio, setMapAffordableRatio] = useState(0);
+  const [mapEnvironmentInvestment, setMapEnvironmentInvestment] = useState(0);
 
   // 자동 저장 타이머
   const saveTimerRef = useRef(null);
 
   // 지표 계산
   const metrics = useMemo(() => {
-    return calculateMetrics(blockBuildings, affordableRatio, environmentInvestment);
-  }, [blockBuildings, affordableRatio, environmentInvestment]);
+    return calculateMetrics(blockBuildings, blockAffordableRatio, blockEnvironmentInvestment);
+  }, [blockBuildings, blockAffordableRatio, blockEnvironmentInvestment]);
 
   // 초기 세션 로드
   useEffect(() => {
@@ -58,11 +60,28 @@ function App() {
             if (cityData.tileBuildings) {
               setTileBuildings(cityData.tileBuildings);
             }
-            if (cityData.affordableRatio !== undefined) {
-              setAffordableRatio(cityData.affordableRatio);
+            // 블록/맵 모드별 저렴한 주거 비율 및 환경 투자 복원
+            if (cityData.blockAffordableRatio !== undefined) {
+              setBlockAffordableRatio(cityData.blockAffordableRatio);
+            } else if (cityData.affordableRatio !== undefined) {
+              // 구 버전 호환: 단일 값이 있으면 블록/맵 모두에 초기값으로 사용
+              setBlockAffordableRatio(cityData.affordableRatio);
+              setMapAffordableRatio(cityData.affordableRatio);
             }
-            if (cityData.environmentInvestment !== undefined) {
-              setEnvironmentInvestment(cityData.environmentInvestment);
+
+            if (cityData.mapAffordableRatio !== undefined) {
+              setMapAffordableRatio(cityData.mapAffordableRatio);
+            }
+
+            if (cityData.blockEnvironmentInvestment !== undefined) {
+              setBlockEnvironmentInvestment(cityData.blockEnvironmentInvestment);
+            } else if (cityData.environmentInvestment !== undefined) {
+              setBlockEnvironmentInvestment(cityData.environmentInvestment);
+              setMapEnvironmentInvestment(cityData.environmentInvestment);
+            }
+
+            if (cityData.mapEnvironmentInvestment !== undefined) {
+              setMapEnvironmentInvestment(cityData.mapEnvironmentInvestment);
             }
             if (cityData.offline) {
               setIsOffline(true);
@@ -99,8 +118,14 @@ function App() {
         const result = await saveCityData(sessionId, {
           blockBuildings,
           tileBuildings,
-          affordableRatio,
-          environmentInvestment,
+          // 모드별 지표 값 저장
+          blockAffordableRatio,
+          blockEnvironmentInvestment,
+          mapAffordableRatio,
+          mapEnvironmentInvestment,
+          // 구 버전 호환을 위해 블록 편집 모드 값을 기본값으로도 저장
+          affordableRatio: blockAffordableRatio,
+          environmentInvestment: blockEnvironmentInvestment,
         });
         
         if (result.offline) {
@@ -125,7 +150,7 @@ function App() {
         clearTimeout(saveTimerRef.current);
       }
     };
-  }, [sessionId, blockBuildings, tileBuildings, affordableRatio, environmentInvestment, isLoading]);
+  }, [sessionId, blockBuildings, tileBuildings, blockAffordableRatio, blockEnvironmentInvestment, mapAffordableRatio, mapEnvironmentInvestment, isLoading]);
 
   const handleBuildingsChange = (blockId, buildings) => {
     setBlockBuildings(prev => ({
@@ -168,7 +193,7 @@ function App() {
               top: '10px', 
               right: '10px',
               fontSize: '12px',
-              color: isOffline ? '#ff9800' : '#4CAF50',
+              color: isOffline ? '#ea580c' : '#16a34a',
               background: 'rgba(255, 255, 255, 0.9)',
               padding: '4px 8px',
               borderRadius: '4px'
@@ -199,10 +224,10 @@ function App() {
           <div className="left-panel">
             <MetricsDisplay
               metrics={metrics}
-              affordableRatio={affordableRatio}
-              onAffordableRatioChange={setAffordableRatio}
-              environmentInvestment={environmentInvestment}
-              onEnvironmentInvestmentChange={setEnvironmentInvestment}
+              affordableRatio={blockAffordableRatio}
+              onAffordableRatioChange={setBlockAffordableRatio}
+              environmentInvestment={blockEnvironmentInvestment}
+              onEnvironmentInvestmentChange={setBlockEnvironmentInvestment}
             />
           </div>
 
@@ -222,10 +247,10 @@ function App() {
         <MapView
           tileBuildings={tileBuildings}
           onTileBuildingsChange={handleTileBuildingsChange}
-          affordableRatio={affordableRatio}
-          onAffordableRatioChange={setAffordableRatio}
-          environmentInvestment={environmentInvestment}
-          onEnvironmentInvestmentChange={setEnvironmentInvestment}
+          affordableRatio={mapAffordableRatio}
+          onAffordableRatioChange={setMapAffordableRatio}
+          environmentInvestment={mapEnvironmentInvestment}
+          onEnvironmentInvestmentChange={setMapEnvironmentInvestment}
         />
       )}
     </div>

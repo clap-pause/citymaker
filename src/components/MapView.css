@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: row;
   height: calc(100vh - 200px);
-  background: #f0f0f0;
+  background: #f3f4f6;
   overflow: hidden;
 }
 
@@ -22,11 +22,11 @@
   top: 0;
   width: 250px;
   height: 100vh;
-  background: white;
-  border-right: 2px solid #ddd;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
   overflow-y: auto;
   z-index: 10;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  box-shadow: 2px 0 8px rgba(15, 23, 42, 0.06);
 }
 
 .building-selector {
@@ -35,14 +35,14 @@
 
 .building-selector h3 {
   margin-bottom: 15px;
-  color: #333;
+  color: #111827;
   font-size: 1.3em;
 }
 
 .rotation-control {
   margin-bottom: 15px;
   padding: 10px;
-  background: #f0f0f0;
+  background: #f3f4f6;
   border-radius: 6px;
 }
 
@@ -69,11 +69,11 @@
 
 .building-category-section h4 {
   font-size: 1em;
-  color: #666;
+  color: #374151;
   margin-bottom: 10px;
   padding: 8px;
-  background: #f5f5f5;
-  border-radius: 4px;
+  background: #f3f4f6;
+  border-radius: 6px;
 }
 
 .building-list {
@@ -84,11 +84,11 @@
 
 .building-item {
   padding: 12px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid #e5e7eb;
   border-radius: 6px;
   cursor: grab;
   transition: all 0.2s;
-  background: white;
+  background: #ffffff;
   user-select: none;
 }
 
@@ -176,30 +176,44 @@
 }
 
 .map-tile.existing {
-  background: #b3d9ff;
+  background: #e5e7eb;
+  cursor: not-allowed;
+}
+
+/* 블록 5 기존 건물 - 경찰서 */
+.map-tile.existing-police {
+  background: #1d4ed8;
+  border-color: #1e40af;
+  cursor: not-allowed;
+}
+
+/* 블록 6 기존 건물 - 학교 */
+.map-tile.existing-school {
+  background: #fbbf24;
+  border-color: #f59e0b;
   cursor: not-allowed;
 }
 
 .map-tile.has-building {
-  background: #d4edda;
+  background: #d1fae5;
 }
 
 .map-tile.building-start {
-  background: #c3e6cb;
+  background: #a7f3d0;
 }
 
 .map-tile.preview-valid {
-  background: #90ee90 !important;
-  border: 3px dashed #28a745 !important;
-  box-shadow: 0 0 10px rgba(40, 167, 69, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.3) !important;
+  background: #bbf7d0 !important;
+  border: 3px dashed #16a34a !important;
+  box-shadow: 0 0 10px rgba(22, 163, 74, 0.35), inset 0 0 5px rgba(255, 255, 255, 0.3) !important;
   transform: scale(1.02);
   z-index: 100;
 }
 
 .map-tile.preview-invalid {
-  background: #ffcccc !important;
-  border: 3px dashed #dc3545 !important;
-  box-shadow: 0 0 10px rgba(220, 53, 69, 0.5) !important;
+  background: #fecaca !important;
+  border: 3px dashed #dc2626 !important;
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.35) !important;
   z-index: 100;
 }
 
@@ -219,6 +233,12 @@
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
 
+.building-label.existing-label {
+  background: rgba(0, 0, 0, 0.8);
+  font-size: 0.7em;
+  padding: 3px 5px;
+}
+
 .building-label.preview-label {
   background: rgba(102, 126, 234, 0.9);
   border: 2px solid white;
@@ -236,8 +256,8 @@
   min-width: 400px;
   max-width: 400px;
   padding: 20px;
-  background: white;
-  border-left: 2px solid #ddd;
+  background: #ffffff;
+  border-left: 1px solid #e5e7eb;
   overflow-y: auto;
   overflow-x: hidden;
   height: 100%;

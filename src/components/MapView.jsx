@@ -75,13 +75,18 @@ export default function MapView({
     const positions = getBuildingTilePositions(building, rotation, startX, startY);
     const bounds = getBuildingBounds(building, rotation);
 
-    // 블록 범위 확인
+    // 블록 범위 확인 (바운딩 박스 기준 1차 체크)
     if (startX + bounds.width > block.width || startY + bounds.height > block.height) {
       return false;
     }
 
-    // 각 타일 위치 확인
+    // 각 타일 위치에 대해 실제로 블록 내부/겹침 여부 2차 체크
     for (const pos of positions) {
+      // 블록 경계를 벗어나는 타일이 하나라도 있으면 배치 불가
+      if (pos.x < 0 || pos.y < 0 || pos.x >= block.width || pos.y >= block.height) {
+        return false;
+      }
+
       const tileKey = `${block.id}-${pos.x}-${pos.y}`;
       
       // 이미 건물이 있는지
@@ -355,7 +360,7 @@ export default function MapView({
             >
               📐 2D 뷰로 전환
             </button>
-            <div className="help-text" style={{ fontSize: '0.85em', color: '#666', marginBottom: '10px', padding: '8px', background: '#f0f0f0', borderRadius: '4px' }}>
+            <div className="help-text" style={{ fontSize: '0.85em', color: '#4b5563', marginBottom: '10px', padding: '8px', background: '#f3f4f6', borderRadius: '6px' }}>
               💡 마우스로 드래그하여 카메라를 회전하고, 휠로 확대/축소할 수 있습니다
             </div>
           </div>
@@ -392,7 +397,7 @@ export default function MapView({
           >
             🏗️ 3D 뷰로 전환
           </button>
-          <div className="help-text" style={{ fontSize: '0.85em', color: '#666', marginBottom: '10px', padding: '8px', background: '#f0f0f0', borderRadius: '4px' }}>
+          <div className="help-text" style={{ fontSize: '0.85em', color: '#4b5563', marginBottom: '10px', padding: '8px', background: '#f3f4f6', borderRadius: '6px' }}>
             💡 팁: 건물을 우클릭하면 제거됩니다
           </div>
           {selectedBuilding && (
@@ -534,6 +539,25 @@ export default function MapView({
                       }
                     }
 
+                    // 기존 건물(경찰서/학교)용 클래스 및 라벨
+                    let existingClass = '';
+                    let existingOverlayLabel = null;
+                    if (isExisting) {
+                      if (block.id === 'block5') {
+                        existingClass = 'existing-police';
+                        // 블록 5의 기존 건물은 좌측 상단 2x2 → 그 중 (0,0)에만 라벨
+                        if (x === 0 && y === 0) {
+                          existingOverlayLabel = '경찰서';
+                        }
+                      } else if (block.id === 'block6') {
+                        existingClass = 'existing-school';
+                        // 블록 6의 기존 건물은 우측 상단 4x2 (x=12~15, y=0~1) → (12,0)에 라벨
+                        if (x === 12 && y === 0) {
+                          existingOverlayLabel = '학교';
+                        }
+                      }
+                    }
+
                     // 건물 스타일 적용
                     let buildingStyle = {};
                     if (building && tileData) {
@@ -554,10 +578,10 @@ export default function MapView({
                         opacity: canPlacePreview ? 0.85 : 0.5,
                         border: canPlacePreview 
                           ? `3px dashed ${patternStyle.borderColor}` 
-                          : `3px dashed #ff0000`,
+                          : `3px dashed #dc2626`,
                         boxShadow: canPlacePreview 
                           ? `0 0 10px ${patternStyle.borderColor}, inset 0 0 5px rgba(255,255,255,0.3)` 
-                          : '0 0 10px #ff0000',
+                          : '0 0 10px rgba(220, 38, 38, 0.5)',
                         zIndex: 100,
                         transform: 'scale(1.02)',
                       };
@@ -571,7 +595,7 @@ export default function MapView({
                     return (
                       <div
                         key={`${x}-${y}`}
-                        className={`map-tile ${isExisting ? 'existing' : ''} ${building ? 'has-building' : ''} ${isPreview ? (canPlacePreview ? 'preview-valid' : 'preview-invalid') : ''}`}
+                        className={`map-tile ${isExisting ? (existingClass || 'existing') : ''} ${building ? 'has-building' : ''} ${isPreview ? (canPlacePreview ? 'preview-valid' : 'preview-invalid') : ''}`}
                         style={finalStyle}
                         onClick={() => handleTileClick(block, x, y)}
                         onContextMenu={(e) => handleTileRightClick(e, block, x, y)}
@@ -584,11 +608,17 @@ export default function MapView({
                         }}
                         onMouseEnter={() => setHoveredTile({ blockId: block.id, x, y })}
                         onMouseLeave={() => setHoveredTile(null)}
-                        title={building ? `${building.name} (${building.size}칸) - 우클릭으로 제거` : isExisting ? '기존 건물' : '빈 공간'}
+                        title={building ? `${building.name} (${building.size}칸) - 우클릭으로 제거` : isExisting ? (block.id === 'block5' ? '경찰서 (기존 건물)' : block.id === 'block6' ? '학교 (기존 건물)' : '기존 건물') : '빈 공간'}
                       >
                         {isBuildingStart && building && (
                           <div className="building-label">
                             {building.name}
+                          </div>
+                        )}
+                        {/* 블록 5/6 기존 건물에 라벨 표시 */}
+                        {!building && existingOverlayLabel && (
+                          <div className="building-label existing-label">
+                            {existingOverlayLabel}
                           </div>
                         )}
                         {/* 프리뷰 시작 타일에도 라벨 표시 (객체처럼 보이게) */}

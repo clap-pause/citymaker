@@ -589,26 +589,58 @@ function Building3D({ building, position, rotation = 0, blockOffset = [0, 0] }) 
 
   // position은 블록 내부의 시작 타일 좌표 (0부터 시작)
   // blockOffset은 블록의 전체 맵 상 위치
-  
-  // 건물의 타일 위치 계산 (회전 고려, 블록 내부 기준)
-  const tiles = getBuildingTiles(buildingData, rotation, position[0], position[2]);
-  const bounds = {
-    minX: Math.min(...tiles.map(t => t.x)),
-    maxX: Math.max(...tiles.map(t => t.x)),
-    minY: Math.min(...tiles.map(t => t.y)),
-    maxY: Math.max(...tiles.map(t => t.y)),
-  };
 
-  const width = bounds.maxX - bounds.minX + 1;
-  const depth = bounds.maxY - bounds.minY + 1;
-  
-  // 건물의 중심점 (전체 맵 좌표 기준)
-  const centerX = blockOffset[0] + (bounds.minX + bounds.maxX + 1) / 2;
-  const centerY = blockOffset[1] + (bounds.minY + bounds.maxY + 1) / 2;
-  
-  // L자 모양이나 L5 모양인지 확인 (타일별 렌더링 필요)
+  // L / L5 모양 여부 (타일 단위 렌더링)
   const needsTileBasedRendering = buildingData.shape === 'L' || buildingData.shape === 'L5';
 
+  // ---- 타일/중심/폭·깊이 계산 ----
+  let tiles;       // 타일별 좌표 (렌더용)
+  let width;       // 건물 폭 (타일 수)
+  let depth;       // 건물 깊이 (타일 수)
+  let centerX;     // 건물 중심 X (전체 맵 좌표)
+  let centerY;     // 건물 중심 Z (전체 맵 좌표)
+
+  if (needsTileBasedRendering) {
+    // L / L5: 2D와 동일하게 회전된 타일 배열을 그대로 사용
+    tiles = getBuildingTiles(buildingData, rotation, position[0], position[2]);
+    const bounds = {
+      minX: Math.min(...tiles.map(t => t.x)),
+      maxX: Math.max(...tiles.map(t => t.x)),
+      minY: Math.min(...tiles.map(t => t.y)),
+      maxY: Math.max(...tiles.map(t => t.y)),
+    };
+    width = bounds.maxX - bounds.minX + 1;
+    depth = bounds.maxY - bounds.minY + 1;
+    centerX = blockOffset[0] + (bounds.minX + bounds.maxX + 1) / 2;
+    centerY = blockOffset[1] + (bounds.minY + bounds.maxY + 1) / 2;
+  } else {
+    // 그 외(직사각형/일자/정사각형 등)는:
+    // - 폭/깊이: 0도 기준 타일 배열로 계산 (기하학 회전만 적용)
+    // - 중심 위치: 실제 회전된 타일 배열로 계산 (2D 배치와 일치)
+
+    // 0도 기준 타일 (폭/깊이용)
+    const tiles0 = getBuildingTiles(buildingData, 0, position[0], position[2]);
+    const bounds0 = {
+      minX: Math.min(...tiles0.map(t => t.x)),
+      maxX: Math.max(...tiles0.map(t => t.x)),
+      minY: Math.min(...tiles0.map(t => t.y)),
+      maxY: Math.max(...tiles0.map(t => t.y)),
+    };
+    width = bounds0.maxX - bounds0.minX + 1;
+    depth = bounds0.maxY - bounds0.minY + 1;
+
+    // 실제 회전된 타일 (중심 위치용)
+    tiles = getBuildingTiles(buildingData, rotation, position[0], position[2]);
+    const boundsRot = {
+      minX: Math.min(...tiles.map(t => t.x)),
+      maxX: Math.max(...tiles.map(t => t.x)),
+      minY: Math.min(...tiles.map(t => t.y)),
+      maxY: Math.max(...tiles.map(t => t.y)),
+    };
+    centerX = blockOffset[0] + (boundsRot.minX + boundsRot.maxX + 1) / 2;
+    centerY = blockOffset[1] + (boundsRot.minY + boundsRot.maxY + 1) / 2;
+  }
+  
   // 타일별 렌더링 (L자, L5 모양 건물용)
   const renderTileBasedModel = () => {
     const getColor = (category) => {
@@ -626,7 +658,7 @@ function Building3D({ building, position, rotation = 0, blockOffset = [0, 0] }) 
     // 타일 위치는 이미 회전이 적용된 상태이므로, 절대 위치를 사용
     return (
       <group>
-        {tiles.map((tile, index) => {
+      {tiles.map((tile, index) => {
           // 타일의 절대 위치 (전체 맵 좌표 기준)
           const tileX = blockOffset[0] + tile.x + 0.5;
           const tileZ = blockOffset[1] + tile.y + 0.5;
@@ -927,9 +959,83 @@ function Block3D({ block, tileBuildings }) {
         />
       ))}
 
-      {/* 기존 건물들 */}
+      {/* 기존 건물들 (블록 5: 경찰서, 블록 6: 학교) */}
       {block.existingBuildings.map((eb, index) => {
-        const existingHeight = 1.2; // 기존 건물 높이 증가
+        const existingHeight = 1.2;
+        const centerX = blockX + eb.x + eb.width / 2;
+        const centerZ = blockY + eb.y + eb.height / 2;
+
+        // 블록 5: 경찰서
+        if (block.id === 'block5') {
+          return (
+            <group key={`existing-${block.id}-${index}`} position={[centerX, existingHeight / 2, centerZ]}>
+              {/* 본관 */}
+              <mesh>
+                <boxGeometry args={[eb.width, existingHeight, eb.height]} />
+                <meshStandardMaterial color="#1d4ed8" />
+              </mesh>
+              {/* 지붕 띠 */}
+              <mesh position={[0, existingHeight / 2 + 0.1, 0]}>
+                <boxGeometry args={[eb.width * 0.9, 0.2, eb.height * 0.9]} />
+                <meshStandardMaterial color="#e5e7eb" />
+              </mesh>
+              {/* 입구 */}
+              <mesh position={[0, -existingHeight / 2 + 0.4, eb.height / 2 + 0.02]}>
+                <boxGeometry args={[0.6, 0.8, 0.1]} />
+                <meshStandardMaterial color="#111827" />
+              </mesh>
+              {/* 경찰서 텍스트 */}
+              <Text
+                position={[0, existingHeight / 2 + 0.6, 0]}
+                fontSize={0.6}
+                color="#ffffff"
+                anchorX="center"
+                anchorY="middle"
+                outlineWidth={0.08}
+                outlineColor="#0f172a"
+              >
+                경찰서
+              </Text>
+            </group>
+          );
+        }
+
+        // 블록 6: 학교
+        if (block.id === 'block6') {
+          return (
+            <group key={`existing-${block.id}-${index}`} position={[centerX, existingHeight / 2, centerZ]}>
+              {/* 본관 */}
+              <mesh>
+                <boxGeometry args={[eb.width, existingHeight, eb.height]} />
+                <meshStandardMaterial color="#facc15" />
+              </mesh>
+              {/* 지붕 */}
+              <mesh position={[0, existingHeight / 2 + 0.2, 0]}>
+                <boxGeometry args={[eb.width * 0.9, 0.3, eb.height * 0.9]} />
+                <meshStandardMaterial color="#f97316" />
+              </mesh>
+              {/* 운동장 느낌의 앞마당 (낮은 플랫폼) */}
+              <mesh position={[0, -existingHeight / 2 + 0.05, 0]}>
+                <boxGeometry args={[eb.width * 1.2, 0.1, eb.height * 1.2]} />
+                <meshStandardMaterial color="#bbf7d0" />
+              </mesh>
+              {/* 학교 텍스트 */}
+              <Text
+                position={[0, existingHeight / 2 + 0.6, 0]}
+                fontSize={0.6}
+                color="#111827"
+                anchorX="center"
+                anchorY="middle"
+                outlineWidth={0.06}
+                outlineColor="#ffffff"
+              >
+                학교
+              </Text>
+            </group>
+          );
+        }
+
+        // 기타 기존 건물 (현재는 없음) - 기본 박스
         return (
           <mesh
             key={`existing-${block.id}-${index}`}
@@ -1084,7 +1190,7 @@ export default function MapView3D({ tileBuildings }) {
   const centerY = MAP_LAYOUT.blocks[3].y + MAP_LAYOUT.blocks[3].height / 2; // 블록 4와 5의 중심 Y (같은 y 위치)
 
   return (
-    <div style={{ width: '100%', height: '100%', background: '#87CEEB' }}>
+    <div style={{ width: '100%', height: '100%', background: '#e5e7eb' }}>
       <Canvas shadows>
         <PerspectiveCamera makeDefault position={[centerX + 5, 20, centerY + 5]} fov={50} />
         <ambientLight intensity={0.5} />

@@ -6,10 +6,9 @@
   text-align: center;
   color: white;
   margin-bottom: 30px;
-  padding: 30px;
-  background: rgba(255, 255, 255, 0.1);
+  padding: 24px 20px;
+  background: #1e3a8a;
   border-radius: 12px;
-  backdrop-filter: blur(10px);
   position: relative;
 }
 
@@ -32,7 +31,7 @@
   padding: 12px 24px;
   font-size: 1em;
   font-weight: 600;
-  border: 2px solid white;
+  border: 2px solid rgba(255, 255, 255, 0.8);
   background: rgba(255, 255, 255, 0.2);
   color: white;
   border-radius: 8px;
@@ -48,6 +47,7 @@
 .view-mode-selector button.active {
   background: white;
   color: #667eea;
+  border-color: white;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
@@ -82,11 +82,10 @@
 }
 
 .blocks-title {
-  color: white;
+  color: #111827;
   font-size: 2em;
   margin-bottom: 20px;
   text-align: center;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 @media (max-width: 1200px) {

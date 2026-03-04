@@ -2,11 +2,12 @@ import React from 'react';
 import './MetricsDisplay.css';
 
 export default function MetricsDisplay({ metrics, affordableRatio, onAffordableRatioChange, environmentInvestment, onEnvironmentInvestmentChange }) {
+  /* 앱 액센트(진한 회색)와 통일된 단계별 색상 */
   const getLivabilityColor = (score) => {
-    if (score >= 80) return '#27ae60';
-    if (score >= 60) return '#f39c12';
-    if (score >= 40) return '#e67e22';
-    return '#e74c3c';
+    if (score >= 80) return '#111827';
+    if (score >= 60) return '#374151';
+    if (score >= 40) return '#6b7280';
+    return '#9ca3af';
   };
 
   const getLivabilityText = (score) => {
@@ -115,7 +116,7 @@ export default function MetricsDisplay({ metrics, affordableRatio, onAffordableR
             <div className={`metric-value ${metrics.carbonIndex <= 20 ? 'positive' : ''}`}>
               {metrics.carbonIndex.toFixed(1)}
             </div>
-            <div className="livability-text" style={{ color: 'rgba(255,255,255,0.9)' }}>
+            <div className="livability-text">
               칸당 {metrics.carbonPerTile.toFixed(1)}톤 CO2 (순배출 {metrics.netCarbon.toFixed(1)}톤 CO2)
             </div>
           </div>
@@ -125,13 +126,10 @@ export default function MetricsDisplay({ metrics, affordableRatio, onAffordableR
           </div>
           <div className="metric-card livability-card">
             <div className="metric-label">살고 싶은 도시 지수</div>
-            <div 
-              className="metric-value livability-score"
-              style={{ color: getLivabilityColor(metrics.livabilityScore) }}
-            >
+            <div className="metric-value livability-score">
               {metrics.livabilityScore}점
             </div>
-            <div className="livability-text" style={{ color: getLivabilityColor(metrics.livabilityScore) }}>
+            <div className="livability-text">
               {getLivabilityText(metrics.livabilityScore)}
             </div>
           </div>

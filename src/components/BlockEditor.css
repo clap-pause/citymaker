@@ -1,9 +1,10 @@
 .block-editor {
-  background: white;
-  border-radius: 12px;
+  background: #ffffff;
+  border-radius: 10px;
   padding: 20px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
 .block-header {
@@ -12,11 +13,11 @@
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .block-header h3 {
-  color: #333;
+  color: #111827;
   font-size: 1.5em;
 }
 
@@ -27,7 +28,7 @@
 }
 
 .block-size-info .error {
-  color: #e74c3c;
+  color: #dc2626;
 }
 
 .buildings-list {
@@ -39,11 +40,11 @@
 }
 
 .category-title {
-  color: #555;
+  color: #374151;
   font-size: 1.1em;
   margin-bottom: 12px;
   padding: 8px 12px;
-  background: #f5f5f5;
+  background: #f3f4f6;
   border-radius: 6px;
 }
 
@@ -54,10 +55,10 @@
 }
 
 .building-item {
-  border: 2px solid #e0e0e0;
+  border: 2px solid #e5e7eb;
   border-radius: 8px;
   padding: 12px;
-  background: #fafafa;
+  background: #f9fafb;
   transition: all 0.2s;
 }
 
@@ -75,11 +76,11 @@
 
 .building-name {
   font-weight: 600;
-  color: #333;
+  color: #111827;
 }
 
 .building-size {
-  color: #666;
+  color: #4b5563;
   font-size: 0.9em;
 }
 
@@ -124,14 +125,14 @@
 .building-total {
   text-align: center;
   font-size: 0.85em;
-  color: #666;
+  color: #4b5563;
   margin-top: 5px;
 }
 
 .affordable-housing-setting {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 2px solid #e0e0e0;
+  border-top: 2px solid #e5e7eb;
 }
 
 .affordable-housing-setting label {
@@ -139,14 +140,14 @@
   flex-direction: column;
   gap: 10px;
   font-weight: 600;
-  color: #333;
+  color: #111827;
 }
 
 .affordable-housing-setting input[type="range"] {
   width: 100%;
   height: 8px;
   border-radius: 4px;
-  background: #e0e0e0;
+  background: #e5e7eb;
   outline: none;
   -webkit-appearance: none;
 }
