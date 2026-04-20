@@ -3,12 +3,20 @@ import BlockEditor from './components/BlockEditor';
 import MetricsDisplay from './components/MetricsDisplay';
 import MapView from './components/MapView';
 import { BLOCKS } from './data/blocks';
-import { MAP_LAYOUT } from './data/mapLayout';
 import { calculateMetrics } from './utils/calculations';
-import { getOrCreateSession, saveCityData, loadCityData } from './utils/api';
+import { getOrCreateSession, saveCityData, loadCityData, verifyAccessCode } from './utils/api';
 import './App.css';
 
 function App() {
+  // 접속 코드 인증 상태
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [accessCodeInput, setAccessCodeInput] = useState('');
+  const [accessError, setAccessError] = useState('');
+  const authExpiryTimerRef = useRef(null);
+
+  const AUTH_STORAGE_KEY = 'cityAccessAuth_v1';
+  const AUTH_TTL_MS = 4 * 60 * 60 * 1000; // 4시간
+
   // 뷰 모드: 'blocks' 또는 'map'
   const [viewMode, setViewMode] = useState('map'); // 기본값을 'map'으로 변경
   
@@ -43,6 +51,8 @@ function App() {
 
   // 초기 세션 로드
   useEffect(() => {
+    if (!isAuthorized) return;
+
     async function initializeSession() {
       try {
         const savedSessionId = localStorage.getItem('citySessionId');
@@ -100,10 +110,12 @@ function App() {
     }
     
     initializeSession();
-  }, []);
+  }, [isAuthorized]);
 
   // 자동 저장 (변경 후 2초 대기)
   useEffect(() => {
+    if (!isAuthorized) return;
+
     if (!sessionId || isLoading) return;
     
     // 기존 타이머 취소
@@ -150,7 +162,109 @@ function App() {
         clearTimeout(saveTimerRef.current);
       }
     };
-  }, [sessionId, blockBuildings, tileBuildings, blockAffordableRatio, blockEnvironmentInvestment, mapAffordableRatio, mapEnvironmentInvestment, isLoading]);
+  }, [sessionId, blockBuildings, tileBuildings, blockAffordableRatio, blockEnvironmentInvestment, mapAffordableRatio, mapEnvironmentInvestment, isLoading, isAuthorized]);
+
+  // 저장된 인증(1시간) 복원
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      const authorizedUntil = Number(parsed?.authorizedUntil);
+      if (!authorizedUntil || Number.isNaN(authorizedUntil)) {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        return;
+      }
+      if (Date.now() < authorizedUntil) {
+        setIsAuthorized(true);
+      } else {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+      }
+    } catch {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  }, []);
+
+  // 인증 만료 타이머 (1시간 지나면 다시 PIN 입력)
+  useEffect(() => {
+    if (authExpiryTimerRef.current) {
+      clearTimeout(authExpiryTimerRef.current);
+      authExpiryTimerRef.current = null;
+    }
+
+    if (!isAuthorized) return;
+
+    let authorizedUntil = null;
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const v = Number(parsed?.authorizedUntil);
+        if (v && !Number.isNaN(v)) authorizedUntil = v;
+      }
+    } catch {
+      // ignore
+    }
+
+    if (!authorizedUntil) {
+      // 혹시 저장이 없으면 즉시 만료 처리
+      setIsAuthorized(false);
+      return;
+    }
+
+    const msLeft = authorizedUntil - Date.now();
+    if (msLeft <= 0) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      setIsAuthorized(false);
+      return;
+    }
+
+    authExpiryTimerRef.current = setTimeout(() => {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      setIsAuthorized(false);
+    }, msLeft);
+
+    return () => {
+      if (authExpiryTimerRef.current) {
+        clearTimeout(authExpiryTimerRef.current);
+        authExpiryTimerRef.current = null;
+      }
+    };
+  }, [isAuthorized]);
+
+  const handleAccessSubmit = (e) => {
+    e.preventDefault();
+    const trimmed = accessCodeInput.trim();
+    if (!trimmed) {
+      setAccessError('코드를 입력해주세요.');
+      return;
+    }
+
+    (async () => {
+      try {
+        setAccessError('');
+        const result = await verifyAccessCode(trimmed);
+        if (result.ok) {
+          // 1시간 동안 재입력 없이 통과 (기기/브라우저 로컬 저장)
+          const authorizedUntil = Date.now() + AUTH_TTL_MS;
+          localStorage.setItem(
+            AUTH_STORAGE_KEY,
+            JSON.stringify({
+              authorizedUntil,
+              lastRotatedAt: result.lastRotatedAt || null,
+            })
+          );
+          setIsAuthorized(true);
+          setAccessError('');
+        } else {
+          setAccessError('코드가 올바르지 않습니다.');
+        }
+      } catch (err) {
+        console.error('접속 코드 검증 오류:', err);
+        setAccessError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+      }
+    })();
+  };
 
   const handleBuildingsChange = (blockId, buildings) => {
     setBlockBuildings(prev => ({
@@ -168,6 +282,31 @@ function App() {
   const handleTileBuildingsChange = (newTileBuildings) => {
     setTileBuildings(newTileBuildings);
   };
+
+  // 접속 코드 입력 화면
+  if (!isAuthorized) {
+    return (
+      <div className="app access-gate">
+        <div className="access-panel">
+          <h1>도시 개발 시뮬레이터</h1>
+          <p>접속 코드를 입력하면 시뮬레이터를 사용할 수 있습니다.</p>
+          <form onSubmit={handleAccessSubmit} className="access-form">
+            <input
+              type="password"
+              className="access-input"
+              placeholder="접속 코드"
+              value={accessCodeInput}
+              onChange={(e) => setAccessCodeInput(e.target.value)}
+            />
+            {accessError && <div className="access-error">{accessError}</div>}
+            <button type="submit" className="access-button">
+              입장하기
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

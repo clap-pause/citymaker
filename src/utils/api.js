@@ -150,3 +150,29 @@ export async function checkServerHealth() {
     return false;
   }
 }
+
+// 접속 코드 검증
+export async function verifyAccessCode(code) {
+  const response = await fetch(`${API_BASE_URL}/access-code/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ code }),
+  });
+
+  if (!response.ok) {
+    throw new Error('접속 코드 검증 실패');
+  }
+
+  return await response.json();
+}
+
+// 현재 접속 코드 정보 조회 (원하면 UI에서 사용할 수 있음)
+export async function getCurrentAccessCodeInfo() {
+  const response = await fetch(`${API_BASE_URL}/access-code/current`);
+  if (!response.ok) {
+    throw new Error('접속 코드 정보 조회 실패');
+  }
+  return await response.json();
+}
