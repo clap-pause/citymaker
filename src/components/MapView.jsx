@@ -14,7 +14,11 @@ export default function MapView({
   affordableRatio,
   onAffordableRatioChange,
   environmentInvestment,
-  onEnvironmentInvestmentChange 
+  onEnvironmentInvestmentChange,
+  techBudget,
+  onTechBudgetChange,
+  selectedTechCardIds,
+  onSelectedTechCardIdsChange,
 }) {
   const [viewMode3D, setViewMode3D] = useState(false); // 2D/3D 뷰 전환
   const [selectedBuilding, setSelectedBuilding] = useState(null);
@@ -295,8 +299,8 @@ export default function MapView({
       }
     });
     
-    return calculateMetrics(convertedBuildings, affordableRatio, environmentInvestment);
-  }, [tileBuildings, affordableRatio, environmentInvestment]);
+    return calculateMetrics(convertedBuildings, affordableRatio, environmentInvestment, selectedTechCardIds);
+  }, [tileBuildings, affordableRatio, environmentInvestment, selectedTechCardIds]);
 
   // 호버 시 미리보기 타일 계산
   const getPreviewTiles = (block, tileX, tileY) => {
@@ -644,6 +648,10 @@ export default function MapView({
             onAffordableRatioChange={onAffordableRatioChange}
             environmentInvestment={environmentInvestment}
             onEnvironmentInvestmentChange={onEnvironmentInvestmentChange}
+            techBudget={techBudget}
+            onTechBudgetChange={onTechBudgetChange}
+            selectedTechCardIds={selectedTechCardIds}
+            onSelectedTechCardIdsChange={onSelectedTechCardIdsChange}
           />
         </div>
       </div>

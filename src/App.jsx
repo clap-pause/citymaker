@@ -41,13 +41,17 @@ function App() {
   const [mapAffordableRatio, setMapAffordableRatio] = useState(0);
   const [mapEnvironmentInvestment, setMapEnvironmentInvestment] = useState(0);
 
+  // 기술 카드(버프) 예산/선택 (전역)
+  const [techBudget, setTechBudget] = useState(10000000000); // 100억원
+  const [selectedTechCardIds, setSelectedTechCardIds] = useState([]);
+
   // 자동 저장 타이머
   const saveTimerRef = useRef(null);
 
   // 지표 계산
   const metrics = useMemo(() => {
-    return calculateMetrics(blockBuildings, blockAffordableRatio, blockEnvironmentInvestment);
-  }, [blockBuildings, blockAffordableRatio, blockEnvironmentInvestment]);
+    return calculateMetrics(blockBuildings, blockAffordableRatio, blockEnvironmentInvestment, selectedTechCardIds);
+  }, [blockBuildings, blockAffordableRatio, blockEnvironmentInvestment, selectedTechCardIds]);
 
   // 초기 세션 로드
   useEffect(() => {
@@ -92,6 +96,14 @@ function App() {
 
             if (cityData.mapEnvironmentInvestment !== undefined) {
               setMapEnvironmentInvestment(cityData.mapEnvironmentInvestment);
+            }
+
+            // 기술 카드 상태 복원
+            if (cityData.techBudget !== undefined) {
+              setTechBudget(cityData.techBudget);
+            }
+            if (Array.isArray(cityData.selectedTechCardIds)) {
+              setSelectedTechCardIds(cityData.selectedTechCardIds);
             }
             if (cityData.offline) {
               setIsOffline(true);
@@ -138,6 +150,10 @@ function App() {
           // 구 버전 호환을 위해 블록 편집 모드 값을 기본값으로도 저장
           affordableRatio: blockAffordableRatio,
           environmentInvestment: blockEnvironmentInvestment,
+
+          // 기술 카드
+          techBudget,
+          selectedTechCardIds,
         });
         
         if (result.offline) {
@@ -162,7 +178,7 @@ function App() {
         clearTimeout(saveTimerRef.current);
       }
     };
-  }, [sessionId, blockBuildings, tileBuildings, blockAffordableRatio, blockEnvironmentInvestment, mapAffordableRatio, mapEnvironmentInvestment, isLoading, isAuthorized]);
+  }, [sessionId, blockBuildings, tileBuildings, blockAffordableRatio, blockEnvironmentInvestment, mapAffordableRatio, mapEnvironmentInvestment, techBudget, selectedTechCardIds, isLoading, isAuthorized]);
 
   // 저장된 인증(1시간) 복원
   useEffect(() => {
@@ -261,7 +277,7 @@ function App() {
         }
       } catch (err) {
         console.error('접속 코드 검증 오류:', err);
-        setAccessError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+        setAccessError('코드가 올바르지 않거나(또는) 서버에 연결할 수 없습니다. 백엔드 없이 쓰려면 Vercel에 VITE_ACCESS_PIN을 설정하세요.');
       }
     })();
   };
@@ -367,6 +383,10 @@ function App() {
               onAffordableRatioChange={setBlockAffordableRatio}
               environmentInvestment={blockEnvironmentInvestment}
               onEnvironmentInvestmentChange={setBlockEnvironmentInvestment}
+              techBudget={techBudget}
+              onTechBudgetChange={setTechBudget}
+              selectedTechCardIds={selectedTechCardIds}
+              onSelectedTechCardIdsChange={setSelectedTechCardIds}
             />
           </div>
 
@@ -390,6 +410,10 @@ function App() {
           onAffordableRatioChange={setMapAffordableRatio}
           environmentInvestment={mapEnvironmentInvestment}
           onEnvironmentInvestmentChange={setMapEnvironmentInvestment}
+          techBudget={techBudget}
+          onTechBudgetChange={setTechBudget}
+          selectedTechCardIds={selectedTechCardIds}
+          onSelectedTechCardIdsChange={setSelectedTechCardIds}
         />
       )}
     </div>

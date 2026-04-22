@@ -1,7 +1,18 @@
 import React from 'react';
 import './MetricsDisplay.css';
+import { TECH_CARDS } from '../data/techCards';
 
-export default function MetricsDisplay({ metrics, affordableRatio, onAffordableRatioChange, environmentInvestment, onEnvironmentInvestmentChange }) {
+export default function MetricsDisplay({
+  metrics,
+  affordableRatio,
+  onAffordableRatioChange,
+  environmentInvestment,
+  onEnvironmentInvestmentChange,
+  techBudget,
+  onTechBudgetChange,
+  selectedTechCardIds,
+  onSelectedTechCardIdsChange,
+}) {
   /* 앱 액센트(진한 회색)와 통일된 단계별 색상 */
   const getLivabilityColor = (score) => {
     if (score >= 80) return '#111827';
@@ -15,6 +26,40 @@ export default function MetricsDisplay({ metrics, affordableRatio, onAffordableR
     if (score >= 60) return '살기 좋은 도시';
     if (score >= 40) return '보통인 도시';
     return '개선이 필요한 도시';
+  };
+
+  const normalizedSelected = Array.isArray(selectedTechCardIds) ? selectedTechCardIds.filter(Boolean).slice(0, 2) : [];
+  const selectedSet = new Set(normalizedSelected);
+  const selectedCards = normalizedSelected.map((id) => TECH_CARDS.find((c) => c.id === id)).filter(Boolean);
+  const selectedCostTotal = selectedCards.reduce((sum, c) => sum + (Number(c.cost) || 0), 0);
+  const budget = Number(techBudget) || 0;
+  const remainingBudget = Math.max(0, budget - selectedCostTotal);
+  const remainingSlots = Math.max(0, 2 - normalizedSelected.length);
+
+  const toggleTechCard = (cardId) => {
+    if (typeof onSelectedTechCardIdsChange !== 'function') return;
+    const card = TECH_CARDS.find((c) => c.id === cardId);
+    if (!card) return;
+
+    // 이미 선택됨 → 해제
+    if (selectedSet.has(cardId)) {
+      onSelectedTechCardIdsChange(normalizedSelected.filter((id) => id !== cardId));
+      return;
+    }
+
+    // 신규 구매 제약: 최대 2개, 예산 내
+    if (normalizedSelected.length >= 2) return;
+    const nextCost = selectedCostTotal + (Number(card.cost) || 0);
+    if (nextCost > budget) return;
+
+    onSelectedTechCardIdsChange([...normalizedSelected, cardId]);
+  };
+
+  const canBuy = (card) => {
+    if (selectedSet.has(card.id)) return true; // 해제 가능
+    if (normalizedSelected.length >= 2) return false;
+    const nextCost = selectedCostTotal + (Number(card.cost) || 0);
+    return nextCost <= budget;
   };
 
   return (
@@ -49,6 +94,65 @@ export default function MetricsDisplay({ metrics, affordableRatio, onAffordableR
             />
           </label>
         </div>
+
+        {/* 기술 카드 */}
+        <div className="tech-settings">
+          <div className="investment-setting">
+            <label>
+              <span>
+                기술 도입 예산: {(budget / 100000000).toFixed(1)}억원
+                <span className="tech-budget-sub">
+                  (남은 예산 {(remainingBudget / 100000000).toFixed(1)}억원 · 남은 슬롯 {remainingSlots}개)
+                </span>
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="20000000000"
+                step="500000000"
+                value={budget}
+                onChange={(e) => {
+                  if (typeof onTechBudgetChange !== 'function') return;
+                  onTechBudgetChange(parseInt(e.target.value));
+                }}
+              />
+            </label>
+          </div>
+
+          <div className="tech-card-grid">
+            {TECH_CARDS.map((card) => {
+              const isSelected = selectedSet.has(card.id);
+              const buyable = canBuy(card);
+              const disabled = !buyable;
+              return (
+                <div key={card.id} className={`tech-card ${isSelected ? 'selected' : ''}`}>
+                  <div className="tech-card-top">
+                    <div className="tech-card-title">{card.name}</div>
+                    <div className="tech-card-cost">{(card.cost / 100000000).toFixed(0)}억원</div>
+                  </div>
+                  <div className="tech-card-desc">{card.description}</div>
+                  <button
+                    type="button"
+                    className={`tech-card-action ${isSelected ? 'remove' : 'buy'}`}
+                    onClick={() => toggleTechCard(card.id)}
+                    disabled={disabled && !isSelected}
+                    title={
+                      isSelected
+                        ? '해제'
+                        : normalizedSelected.length >= 2
+                          ? '최대 2개까지 구매할 수 있어요'
+                          : (selectedCostTotal + (Number(card.cost) || 0) > budget)
+                            ? '예산이 부족해요'
+                            : '구매'
+                    }
+                  >
+                    {isSelected ? '해제' : '구매'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* 건물 개발 시 지표 */}
@@ -72,6 +176,11 @@ export default function MetricsDisplay({ metrics, affordableRatio, onAffordableR
             <div className={`metric-value ${metrics.profit >= 0 ? 'positive' : 'negative'}`}>
               {(metrics.profit / 100000000).toFixed(2)}억원
             </div>
+            {typeof metrics.techCostTotal === 'number' && metrics.techCostTotal > 0 && (
+              <div className="livability-text">
+                기술 도입 비용 {(metrics.techCostTotal / 100000000).toFixed(1)}억원 반영됨
+              </div>
+            )}
           </div>
         </div>
       </div>

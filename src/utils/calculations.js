@@ -1,13 +1,20 @@
 import { BUILDINGS } from '../data/buildings.js';
+import { TECH_CARD_BY_ID } from '../data/techCards.js';
 
 /**
  * 블록별 건물 배치와 설정을 기반으로 지표를 계산합니다.
  * @param {Object} blockBuildings - 블록별 건물 배치 정보 { blockId: [{ buildingId, count, isAffordable }] }
  * @param {number} affordableRatio - 전체 저렴한 주거 비율 (0-1)
  * @param {number} environmentInvestment - 환경 기술 투자 비용
+ * @param {string[]} selectedTechCardIds - 선택(구매)한 기술 카드 ID 목록 (최대 2개 권장)
  * @returns {Object} 계산된 지표들
  */
-export function calculateMetrics(blockBuildings, affordableRatio = 0, environmentInvestment = 0) {
+export function calculateMetrics(
+  blockBuildings,
+  affordableRatio = 0,
+  environmentInvestment = 0,
+  selectedTechCardIds = []
+) {
   let totalJobs = 0;
   let totalTaxIncome = 0;
   let totalConstructionCost = 0;
@@ -95,15 +102,45 @@ export function calculateMetrics(blockBuildings, affordableRatio = 0, environmen
   const carbonReduction = Math.min(investmentInBillions * 2, 10); // 1억원당 2% 감소, 최대 10% 감소
   const adjustedCarbonEmission = totalCarbonEmission * (1 - carbonReduction / 100);
 
+  // ---- 기술 카드(버프) 적용 ----
+  // 최대 2개만 반영 (UI에서 제한하지만, 데이터 무결성도 보장)
+  const normalizedSelectedTechIds = Array.isArray(selectedTechCardIds)
+    ? selectedTechCardIds.filter(Boolean).slice(0, 2)
+    : [];
+
+  let techCostTotal = 0;
+  let techJobsMultiplier = 1;
+  let techTaxIncomeMultiplier = 1;
+  let techConstructionCostMultiplier = 1;
+  let techCarbonMultiplier = 1;
+  let techLivabilityBonus = 0;
+
+  normalizedSelectedTechIds.forEach((id) => {
+    const card = TECH_CARD_BY_ID[id];
+    if (!card) return;
+    techCostTotal += Number(card.cost) || 0;
+    const ef = card.effects || {};
+    if (typeof ef.jobsMultiplier === 'number') techJobsMultiplier *= ef.jobsMultiplier;
+    if (typeof ef.taxIncomeMultiplier === 'number') techTaxIncomeMultiplier *= ef.taxIncomeMultiplier;
+    if (typeof ef.constructionCostMultiplier === 'number') techConstructionCostMultiplier *= ef.constructionCostMultiplier;
+    if (typeof ef.carbonMultiplier === 'number') techCarbonMultiplier *= ef.carbonMultiplier;
+    if (typeof ef.livabilityBonus === 'number') techLivabilityBonus += ef.livabilityBonus;
+  });
+
+  const adjustedJobs = totalJobs * techJobsMultiplier;
+  const adjustedTaxIncome = totalTaxIncome * techTaxIncomeMultiplier;
+  const adjustedConstructionCost = totalConstructionCost * techConstructionCostMultiplier;
+  const adjustedCarbonAfterEnvAndTech = adjustedCarbonEmission * techCarbonMultiplier;
+
   // 탄소 배출 "지표"를 이해하기 쉽게 0~100 지수로 변환합니다. (낮을수록 좋음)
   // - 기본 아이디어: (투자 반영된) 순 탄소 배출량을 "사용된 칸 수"로 나눈 뒤, 임계값으로 정규화
   // - 탄소가 음수(흡수)면 0점(최고), 칸당 200톤 이상이면 100점(최악)
   const usedTilesForCarbon = Math.max(1, totalUsedSize);
-  const carbonPerTile = adjustedCarbonEmission / usedTilesForCarbon;
+  const carbonPerTile = adjustedCarbonAfterEnvAndTech / usedTilesForCarbon;
   const carbonIndex = Math.max(0, Math.min(100, (carbonPerTile / 200) * 100));
 
   // 이윤 계산
-  const profit = totalTaxIncome - totalConstructionCost - environmentInvestment;
+  const profit = adjustedTaxIncome - adjustedConstructionCost - environmentInvestment - techCostTotal;
 
   // 살고 싶은 도시 지수 계산 (0-100)
   // 녹지 비율, 저렴한 주거 비율, 탄소 배출, 일자리 수 등을 종합
@@ -111,15 +148,17 @@ export function calculateMetrics(blockBuildings, affordableRatio = 0, environmen
     greenSpaceRatio,
     affordableHousingRatio,
     carbonIndex,
-    totalJobs,
+    totalJobs: adjustedJobs,
     openSpaceRatio,
   });
 
+  const finalLivabilityScore = Math.max(0, Math.min(100, livabilityScore + techLivabilityBonus));
+
   return {
     // 건물 개발 시 지표
-    totalJobs: Math.round(totalJobs),
-    totalTaxIncome: Math.round(totalTaxIncome),
-    totalConstructionCost: Math.round(totalConstructionCost),
+    totalJobs: Math.round(adjustedJobs),
+    totalTaxIncome: Math.round(adjustedTaxIncome),
+    totalConstructionCost: Math.round(adjustedConstructionCost),
     profit: Math.round(profit),
     
     // 공간 유형별 비율
@@ -133,9 +172,9 @@ export function calculateMetrics(blockBuildings, affordableRatio = 0, environmen
     greenSpaceRatio: Math.round(greenSpaceRatio * 10) / 10,
     carbonIndex: Math.round(carbonIndex * 10) / 10,
     carbonPerTile: Math.round(carbonPerTile * 100) / 100,
-    netCarbon: Math.round(adjustedCarbonEmission * 10) / 10,
+    netCarbon: Math.round(adjustedCarbonAfterEnvAndTech * 10) / 10,
     affordableHousingRatio: Math.round(affordableHousingRatio * 10) / 10,
-    livabilityScore: Math.round(livabilityScore),
+    livabilityScore: Math.round(finalLivabilityScore),
     
     // 추가 정보
     totalSize,
@@ -145,6 +184,11 @@ export function calculateMetrics(blockBuildings, affordableRatio = 0, environmen
     totalOfficeSpace,
     totalOpenSpace,
     totalOtherSpace,
+
+    // 기술 카드 정보
+    selectedTechCardIds: normalizedSelectedTechIds,
+    techCostTotal: Math.round(techCostTotal),
+    techLivabilityBonus: Math.round(techLivabilityBonus),
   };
 }
 

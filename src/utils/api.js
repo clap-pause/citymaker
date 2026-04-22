@@ -1,5 +1,6 @@
 // API 기본 URL (환경에 따라 변경)
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const OFFLINE_ACCESS_PIN = import.meta.env.VITE_ACCESS_PIN || '';
 
 // 세션 ID 가져오기 또는 생성
 export async function getOrCreateSession(existingSessionId = null) {
@@ -153,19 +154,29 @@ export async function checkServerHealth() {
 
 // 접속 코드 검증
 export async function verifyAccessCode(code) {
-  const response = await fetch(`${API_BASE_URL}/access-code/verify`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ code }),
-  });
+  // 1) 서버 검증 시도
+  try {
+    const response = await fetch(`${API_BASE_URL}/access-code/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ code }),
+    });
 
-  if (!response.ok) {
-    throw new Error('접속 코드 검증 실패');
+    if (!response.ok) {
+      // 서버가 에러 응답을 준 경우에도, 배포 환경(백엔드 없음)에서는 로컬 PIN로 폴백 가능
+      throw new Error(`접속 코드 검증 실패 (status ${response.status})`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    // 2) 백엔드가 없을 때를 위한 오프라인 PIN 검증 (Vercel만 배포 시)
+    if (OFFLINE_ACCESS_PIN && String(code ?? '').trim() === String(OFFLINE_ACCESS_PIN).trim()) {
+      return { ok: true, offline: true, lastRotatedAt: null };
+    }
+    throw error;
   }
-
-  return await response.json();
 }
 
 // 현재 접속 코드 정보 조회 (원하면 UI에서 사용할 수 있음)
