@@ -40,13 +40,36 @@ export default function MetricsDisplay({
     [normalizedSelected]
   );
   const selectedCostTotal = useMemo(
-    () => selectedCards.reduce((sum, c) => sum + (Number(c.cost) || 0), 0),
+    () => selectedCards.reduce((sum, c) => sum + (Number(c.coinCost) || 0), 0),
     [selectedCards]
   );
 
-  const budget = Number(techBudget) || 0;
+  const budget = Number.isFinite(Number(techBudget)) ? Number(techBudget) : 0;
   const remainingBudget = Math.max(0, budget - selectedCostTotal);
   const remainingSlots = Math.max(0, 2 - normalizedSelected.length);
+
+  const formatEffects = (effects) => {
+    const ef = effects || {};
+    const lines = [];
+    const pct = (mult) => `${Math.round((mult - 1) * 100)}%`;
+    if (typeof ef.taxIncomeMultiplier === 'number' && ef.taxIncomeMultiplier !== 1) {
+      lines.push(`세금 수입 ${ef.taxIncomeMultiplier >= 1 ? '+' : ''}${pct(ef.taxIncomeMultiplier)}`);
+    }
+    if (typeof ef.constructionCostMultiplier === 'number' && ef.constructionCostMultiplier !== 1) {
+      // 비용은 낮을수록 좋으므로 - 표기
+      lines.push(`건설 비용 ${ef.constructionCostMultiplier <= 1 ? '' : '+'}${pct(ef.constructionCostMultiplier)}`);
+    }
+    if (typeof ef.jobsMultiplier === 'number' && ef.jobsMultiplier !== 1) {
+      lines.push(`일자리 ${ef.jobsMultiplier >= 1 ? '+' : ''}${pct(ef.jobsMultiplier)}`);
+    }
+    if (typeof ef.carbonMultiplier === 'number' && ef.carbonMultiplier !== 1) {
+      lines.push(`탄소 배출 ${ef.carbonMultiplier <= 1 ? '' : '+'}${pct(ef.carbonMultiplier)}`);
+    }
+    if (typeof ef.livabilityBonus === 'number' && ef.livabilityBonus !== 0) {
+      lines.push(`살고 싶은 도시 지수 +${ef.livabilityBonus}점`);
+    }
+    return lines;
+  };
 
   const toggleTechCard = (cardId) => {
     if (typeof onSelectedTechCardIdsChange !== 'function') return;
@@ -61,7 +84,7 @@ export default function MetricsDisplay({
 
     // 신규 구매 제약: 최대 2개, 예산 내
     if (normalizedSelected.length >= 2) return;
-    const nextCost = selectedCostTotal + (Number(card.cost) || 0);
+    const nextCost = selectedCostTotal + (Number(card.coinCost) || 0);
     if (nextCost > budget) return;
 
     onSelectedTechCardIdsChange([...normalizedSelected, cardId]);
@@ -70,7 +93,7 @@ export default function MetricsDisplay({
   const canBuy = (card) => {
     if (selectedSet.has(card.id)) return true; // 해제 가능
     if (normalizedSelected.length >= 2) return false;
-    const nextCost = selectedCostTotal + (Number(card.cost) || 0);
+    const nextCost = selectedCostTotal + (Number(card.coinCost) || 0);
     return nextCost <= budget;
   };
 
@@ -112,16 +135,16 @@ export default function MetricsDisplay({
           <div className="investment-setting">
             <label>
               <span>
-                기술 도입 예산: {(budget / 100000000).toFixed(1)}억원
+                기술 코인: {budget}개
                 <span className="tech-budget-sub">
-                  (남은 예산 {(remainingBudget / 100000000).toFixed(1)}억원 · 남은 슬롯 {remainingSlots}개)
+                  (남은 코인 {remainingBudget}개 · 남은 슬롯 {remainingSlots}개)
                 </span>
               </span>
               <input
                 type="range"
                 min="0"
-                max="20000000000"
-                step="500000000"
+                max="10"
+                step="1"
                 value={budget}
                 onChange={(e) => {
                   if (typeof onTechBudgetChange !== 'function') return;
@@ -141,17 +164,20 @@ export default function MetricsDisplay({
 
           {normalizedSelected.length > 0 && (
             <div className="tech-selected-summary">
-              {selectedCards.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="tech-chip"
-                  onClick={() => toggleTechCard(c.id)}
-                  title="클릭하면 해제"
-                >
-                  {c.name} · {(c.cost / 100000000).toFixed(0)}억 ✕
-                </button>
-              ))}
+              {selectedCards.map((c) => {
+                const effects = formatEffects(c.effects);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="tech-chip"
+                    onClick={() => toggleTechCard(c.id)}
+                    title={`${effects.join(' · ') || '효과 없음'}\n(클릭하면 해제)`}
+                  >
+                    {c.name} · 코인 {c.coinCost} ✕
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -170,7 +196,7 @@ export default function MetricsDisplay({
               <div>
                 <div className="tech-modal-title">기술 카드 선택</div>
                 <div className="tech-modal-sub">
-                  최대 2개 · 예산 {(budget / 100000000).toFixed(1)}억 (남은 {(remainingBudget / 100000000).toFixed(1)}억)
+                  최대 2개 · 코인 {budget}개 (남은 {remainingBudget}개)
                 </div>
               </div>
               <button type="button" className="tech-modal-close" onClick={() => setIsTechModalOpen(false)}>
@@ -183,13 +209,21 @@ export default function MetricsDisplay({
                 const isSelected = selectedSet.has(card.id);
                 const buyable = canBuy(card);
                 const disabled = !buyable;
+                const effects = formatEffects(card.effects);
                 return (
                   <div key={card.id} className={`tech-card ${isSelected ? 'selected' : ''} ${disabled && !isSelected ? 'disabled' : ''}`}>
                     <div className="tech-card-top">
                       <div className="tech-card-title">{card.name}</div>
-                      <div className="tech-card-cost">{(card.cost / 100000000).toFixed(0)}억원</div>
+                      <div className="tech-card-cost">코인 {card.coinCost}</div>
                     </div>
                     <div className="tech-card-desc">{card.description}</div>
+                    {effects.length > 0 && (
+                      <ul className="tech-effects">
+                        {effects.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    )}
                     <button
                       type="button"
                       className={`tech-card-action ${isSelected ? 'remove' : 'buy'}`}
@@ -200,8 +234,8 @@ export default function MetricsDisplay({
                           ? '해제'
                           : normalizedSelected.length >= 2
                             ? '최대 2개까지 구매할 수 있어요'
-                            : (selectedCostTotal + (Number(card.cost) || 0) > budget)
-                              ? '예산이 부족해요'
+                            : (selectedCostTotal + (Number(card.coinCost) || 0) > budget)
+                              ? '코인이 부족해요'
                               : '구매'
                       }
                     >
@@ -242,11 +276,6 @@ export default function MetricsDisplay({
             <div className={`metric-value ${metrics.profit >= 0 ? 'positive' : 'negative'}`}>
               {(metrics.profit / 100000000).toFixed(2)}억원
             </div>
-            {typeof metrics.techCostTotal === 'number' && metrics.techCostTotal > 0 && (
-              <div className="livability-text">
-                기술 도입 비용 {(metrics.techCostTotal / 100000000).toFixed(1)}억원 반영됨
-              </div>
-            )}
           </div>
         </div>
       </div>

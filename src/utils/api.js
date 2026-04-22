@@ -1,3 +1,6 @@
+import { doc, getDoc } from 'firebase/firestore';
+import { getFirebaseFirestore, hasFirebaseWebConfig } from './firebaseClient';
+
 // API 기본 URL (환경에 따라 변경)
 // - 백엔드 없이 쓰려면 VITE_API_URL을 설정하지 마세요(완전 오프라인 모드).
 // - 끝의 "/" 는 제거해서 `//access-code/verify` 같은 실수를 방지
@@ -206,10 +209,29 @@ export async function checkServerHealth() {
 export async function verifyAccessCode(code) {
   const trimmed = String(code ?? '').trim();
 
-  // 백엔드가 없는 배포(Vercel only)에서는 아예 네트워크 요청을 하지 않도록 함
-  // (잘못된 VITE_API_URL로 다른 Vercel 도메인에 요청 → CORS/리다이렉트 문제 방지)
+  // 0) 오프라인 고정 PIN (Vercel only 등)
   if (OFFLINE_ACCESS_PIN && trimmed === OFFLINE_ACCESS_PIN.trim()) {
     return { ok: true, offline: true, lastRotatedAt: null };
+  }
+
+  // 1) 백엔드가 없더라도, Firestore에서 PIN을 직접 조회해서 검증할 수 있음 (Firebase Web SDK)
+  //    - Firestore 경로: pw/pin_num (필드: pin_num)
+  //    - Firestore Rules에서 이 문서 read가 허용되어야 함
+  if (!HAS_API && hasFirebaseWebConfig()) {
+    const db = getFirebaseFirestore();
+    if (db) {
+      const snap = await getDoc(doc(db, 'pw', 'pin_num'));
+      const data = snap.exists() ? snap.data() : null;
+      const pin = data?.pin_num === undefined || data?.pin_num === null ? null : String(data.pin_num).trim();
+      const updatedAt = data?.updatedAt?.toDate ? data.updatedAt.toDate() : null;
+      if (pin && trimmed === pin) {
+        return { ok: true, offline: true, lastRotatedAt: updatedAt };
+      }
+      // pin이 없거나 불일치면 아래에서 백엔드(있으면) 시도하거나 실패 처리
+      if (!HAS_API) {
+        return { ok: false, offline: true, lastRotatedAt: updatedAt };
+      }
+    }
   }
 
   // 오프라인 모드에서 PIN이 없으면(또는 불일치면) 실패 처리

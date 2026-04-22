@@ -108,7 +108,6 @@ export function calculateMetrics(
     ? selectedTechCardIds.filter(Boolean).slice(0, 2)
     : [];
 
-  let techCostTotal = 0;
   let techJobsMultiplier = 1;
   let techTaxIncomeMultiplier = 1;
   let techConstructionCostMultiplier = 1;
@@ -118,7 +117,6 @@ export function calculateMetrics(
   normalizedSelectedTechIds.forEach((id) => {
     const card = TECH_CARD_BY_ID[id];
     if (!card) return;
-    techCostTotal += Number(card.cost) || 0;
     const ef = card.effects || {};
     if (typeof ef.jobsMultiplier === 'number') techJobsMultiplier *= ef.jobsMultiplier;
     if (typeof ef.taxIncomeMultiplier === 'number') techTaxIncomeMultiplier *= ef.taxIncomeMultiplier;
@@ -140,7 +138,8 @@ export function calculateMetrics(
   const carbonIndex = Math.max(0, Math.min(100, (carbonPerTile / 200) * 100));
 
   // 이윤 계산
-  const profit = adjustedTaxIncome - adjustedConstructionCost - environmentInvestment - techCostTotal;
+  // 기술 카드는 "기술 코인"으로만 구매 (현금 이윤에는 영향 없음)
+  const profit = adjustedTaxIncome - adjustedConstructionCost - environmentInvestment;
 
   // 살고 싶은 도시 지수 계산 (0-100)
   // 녹지 비율, 저렴한 주거 비율, 탄소 배출, 일자리 수 등을 종합
@@ -187,7 +186,6 @@ export function calculateMetrics(
 
     // 기술 카드 정보
     selectedTechCardIds: normalizedSelectedTechIds,
-    techCostTotal: Math.round(techCostTotal),
     techLivabilityBonus: Math.round(techLivabilityBonus),
   };
 }

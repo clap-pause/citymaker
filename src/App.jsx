@@ -42,7 +42,7 @@ function App() {
   const [mapEnvironmentInvestment, setMapEnvironmentInvestment] = useState(0);
 
   // 기술 카드(버프) 예산/선택 (전역)
-  const [techBudget, setTechBudget] = useState(10000000000); // 100억원
+  const [techBudget, setTechBudget] = useState(10); // 기술 코인 10개
   const [selectedTechCardIds, setSelectedTechCardIds] = useState([]);
 
   // 자동 저장 타이머
