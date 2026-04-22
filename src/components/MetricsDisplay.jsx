@@ -30,7 +30,6 @@ export default function MetricsDisplay({
   };
 
   const [isTechModalOpen, setIsTechModalOpen] = useState(false);
-  const [isTechSummaryOpen, setIsTechSummaryOpen] = useState(true);
 
   const normalizedSelected = useMemo(
     () => (Array.isArray(selectedTechCardIds) ? selectedTechCardIds.filter(Boolean).slice(0, 2) : []),
@@ -221,49 +220,10 @@ export default function MetricsDisplay({
                   최대 2개 · 코인 {budget}개 (남은 {remainingBudget}개)
                 </div>
               </div>
-              <div className="tech-modal-header-actions">
-                <button
-                  type="button"
-                  className="tech-modal-toggle"
-                  onClick={() => setIsTechSummaryOpen((v) => !v)}
-                >
-                  {isTechSummaryOpen ? '요약 접기' : '요약 펼치기'}
-                </button>
-                <button type="button" className="tech-modal-close" onClick={() => setIsTechModalOpen(false)}>
-                  닫기
-                </button>
-              </div>
+              <button type="button" className="tech-modal-close" onClick={() => setIsTechModalOpen(false)}>
+                닫기
+              </button>
             </div>
-
-            {isTechSummaryOpen && (
-              <div className="tech-summary">
-                <div className="tech-summary-head">
-                  <div className="tech-summary-title">요약뷰</div>
-                  <div className="tech-summary-hint">코인(4/5/6) · 효과 비교</div>
-                </div>
-                <div className="tech-summary-list">
-                  {TECH_CARDS
-                    .slice()
-                    .sort((a, b) => normalizedCoinCost(a) - normalizedCoinCost(b) || a.name.localeCompare(b.name))
-                    .map((card) => {
-                      const isSelected = selectedSet.has(card.id);
-                      const effects = formatEffects(card.effects);
-                      const coin = normalizedCoinCost(card);
-                      return (
-                        <div key={`summary-${card.id}`} className={`tech-summary-row ${isSelected ? 'selected' : ''}`}>
-                          <div className="tech-summary-left">
-                            <div className="tech-summary-name">{card.name}</div>
-                            <div className="tech-summary-meta">코인 {coin}</div>
-                          </div>
-                          <div className="tech-summary-right">
-                            {effects.length ? effects.join(' · ') : '효과 없음'}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
 
             <div className="tech-card-grid modal">
               {TECH_CARDS.map((card) => {
