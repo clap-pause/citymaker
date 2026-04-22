@@ -300,8 +300,13 @@ export default function MapView({
       }
     });
     
-    return calculateMetrics(convertedBuildings, affordableRatio, environmentInvestment, selectedTechCardIds);
-  }, [tileBuildings, affordableRatio, environmentInvestment, selectedTechCardIds]);
+    return calculateMetrics(
+      convertedBuildings,
+      affordableRatio,
+      environmentInvestment,
+      techCardsEnabled ? selectedTechCardIds : []
+    );
+  }, [tileBuildings, affordableRatio, environmentInvestment, selectedTechCardIds, techCardsEnabled]);
 
   // 호버 시 미리보기 타일 계산
   const getPreviewTiles = (block, tileX, tileY) => {

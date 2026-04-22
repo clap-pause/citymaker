@@ -53,8 +53,13 @@ function App() {
 
   // 지표 계산
   const metrics = useMemo(() => {
-    return calculateMetrics(blockBuildings, blockAffordableRatio, blockEnvironmentInvestment, selectedTechCardIds);
-  }, [blockBuildings, blockAffordableRatio, blockEnvironmentInvestment, selectedTechCardIds]);
+    return calculateMetrics(
+      blockBuildings,
+      blockAffordableRatio,
+      blockEnvironmentInvestment,
+      techCardsEnabled ? selectedTechCardIds : []
+    );
+  }, [blockBuildings, blockAffordableRatio, blockEnvironmentInvestment, selectedTechCardIds, techCardsEnabled]);
 
   // 초기 세션 로드
   useEffect(() => {
@@ -149,6 +154,13 @@ function App() {
     
     initializeSession();
   }, [isAuthorized]);
+
+  // 기술 카드 기능이 비활성화되면 선택 초기화 (효과 반영도 차단)
+  useEffect(() => {
+    if (!techCardsEnabled) {
+      setSelectedTechCardIds([]);
+    }
+  }, [techCardsEnabled]);
 
   // 자동 저장 (변경 후 2초 대기)
   useEffect(() => {

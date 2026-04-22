@@ -86,6 +86,7 @@ export default function MetricsDisplay({
   };
 
   const toggleTechCard = (cardId) => {
+    if (!techCardsEnabled) return;
     if (typeof onSelectedTechCardIdsChange !== 'function') return;
     const card = TECH_CARDS.find((c) => c.id === cardId);
     if (!card) return;
@@ -105,6 +106,7 @@ export default function MetricsDisplay({
   };
 
   const canBuy = (card) => {
+    if (!techCardsEnabled) return false;
     if (selectedSet.has(card.id)) return true; // 해제 가능
     if (normalizedSelected.length >= 2) return false;
     const nextCost = selectedCostTotal + normalizedCoinCost(card);
@@ -179,7 +181,7 @@ export default function MetricsDisplay({
 
           {!techCardsEnabled && (
             <div className="tech-disabled-hint">
-              현재 기술 카드 기능이 비활성화되어 있어요. (Firestore `pw/pin_num.tech_trig=true`로 바꾸면 활성화)
+              현재 기술 카드 기능이 비활성화되어 있어요.
             </div>
           )}
 
@@ -197,6 +199,22 @@ export default function MetricsDisplay({
                   >
                     {c.name} · 코인 {c.coinCost} ✕
                   </button>
+                );
+              })}
+            </div>
+          )}
+
+          {techCardsEnabled && normalizedSelected.length > 0 && (
+            <div className="tech-selected-effects">
+              {selectedCards.map((c) => {
+                const effects = formatEffects(c.effects);
+                return (
+                  <div key={`selected-effects-${c.id}`} className="tech-selected-effect-card">
+                    <div className="tech-selected-effect-title">{c.name}</div>
+                    <div className="tech-selected-effect-body">
+                      {effects.length ? effects.join(' · ') : '효과 없음'}
+                    </div>
+                  </div>
                 );
               })}
             </div>
