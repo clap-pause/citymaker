@@ -33,7 +33,6 @@ export const TECH_CARDS = [
     description: '교통량에 따라 신호 자동 조절',
     coreEffect: '환경 + 경제 (혼잡 감소, 시간 절약)',
     effects: {
-      jobsMultiplier: 1.02,
       taxIncomeMultiplier: 1.02,
       carbonMultiplier: 0.97,
       livabilityBonus: 1,
@@ -46,7 +45,9 @@ export const TECH_CARDS = [
     description: '복지, 행정 서비스를 디지털로 제공',
     coreEffect: '사회 형평성 (접근성 향상)',
     effects: {
-      livabilityBonus: 4,
+      taxIncomeMultiplier: 1.01,
+      jobsMultiplier: 1.01,
+      livabilityBonus: 3,
     },
   },
   {
@@ -67,6 +68,7 @@ export const TECH_CARDS = [
     description: '쓰레기·재활용을 효율적으로 관리',
     coreEffect: '환경 + 경제 (자원 절약)',
     effects: {
+      taxIncomeMultiplier: 1.01,
       carbonMultiplier: 0.92,
       constructionCostMultiplier: 0.98,
       livabilityBonus: 1,
@@ -81,7 +83,6 @@ export const TECH_CARDS = [
     effects: {
       constructionCostMultiplier: 0.99,
       taxIncomeMultiplier: 1.03,
-      jobsMultiplier: 1.01,
       livabilityBonus: 2,
     },
   },
@@ -93,6 +94,8 @@ export const TECH_CARDS = [
     coreEffect: '형평성 + 브랜딩 (참여형 도시 이미지)',
     effects: {
       taxIncomeMultiplier: 1.01,
+      jobsMultiplier: 1.01,
+      carbonMultiplier: 0.99,
       livabilityBonus: 3,
     },
   },
