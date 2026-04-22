@@ -5,6 +5,8 @@ import MapView from './components/MapView';
 import { BLOCKS } from './data/blocks';
 import { calculateMetrics } from './utils/calculations';
 import { getOrCreateSession, saveCityData, loadCityData, verifyAccessCode } from './utils/api';
+import { doc, getDoc } from 'firebase/firestore';
+import { getFirebaseFirestore, hasFirebaseWebConfig } from './utils/firebaseClient';
 import './App.css';
 
 function App() {
@@ -44,6 +46,7 @@ function App() {
   // 기술 카드(버프) 예산/선택 (전역)
   const [techBudget, setTechBudget] = useState(10); // 기술 코인 10개
   const [selectedTechCardIds, setSelectedTechCardIds] = useState([]);
+  const [techCardsEnabled, setTechCardsEnabled] = useState(true);
 
   // 자동 저장 타이머
   const saveTimerRef = useRef(null);
@@ -59,6 +62,23 @@ function App() {
 
     async function initializeSession() {
       try {
+        // 기술 카드 기능 플래그 (Firestore)
+        if (hasFirebaseWebConfig()) {
+          try {
+            const db = getFirebaseFirestore();
+            if (db) {
+              // Firestore 문서: pw/pin_num (필드: tech_trig)
+              // tech_trig === true → 기술 카드 활성화, false → 비활성화
+              const snap = await getDoc(doc(db, 'pw', 'pin_num'));
+              const enabled = snap.exists() ? Boolean(snap.data()?.tech_trig) : true;
+              setTechCardsEnabled(enabled);
+            }
+          } catch {
+            // 플래그 조회 실패 시 기본 활성화
+            setTechCardsEnabled(true);
+          }
+        }
+
         const savedSessionId = localStorage.getItem('citySessionId');
         const session = await getOrCreateSession(savedSessionId);
         setSessionId(session.sessionId);
@@ -100,7 +120,13 @@ function App() {
 
             // 기술 카드 상태 복원
             if (cityData.techBudget !== undefined) {
-              setTechBudget(cityData.techBudget);
+              // 구버전(현금 단위 예산) 호환: 10억/100억 같은 값이 들어있으면 코인 10으로 마이그레이션
+              const v = Number(cityData.techBudget);
+              if (Number.isFinite(v) && v > 100) {
+                setTechBudget(10);
+              } else {
+                setTechBudget(cityData.techBudget);
+              }
             }
             if (Array.isArray(cityData.selectedTechCardIds)) {
               setSelectedTechCardIds(cityData.selectedTechCardIds);
@@ -387,6 +413,7 @@ function App() {
               onTechBudgetChange={setTechBudget}
               selectedTechCardIds={selectedTechCardIds}
               onSelectedTechCardIdsChange={setSelectedTechCardIds}
+              techCardsEnabled={techCardsEnabled}
             />
           </div>
 
@@ -414,6 +441,7 @@ function App() {
           onTechBudgetChange={setTechBudget}
           selectedTechCardIds={selectedTechCardIds}
           onSelectedTechCardIdsChange={setSelectedTechCardIds}
+          techCardsEnabled={techCardsEnabled}
         />
       )}
     </div>

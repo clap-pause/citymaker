@@ -19,6 +19,7 @@ export default function MapView({
   onTechBudgetChange,
   selectedTechCardIds,
   onSelectedTechCardIdsChange,
+  techCardsEnabled,
 }) {
   const [viewMode3D, setViewMode3D] = useState(false); // 2D/3D 뷰 전환
   const [selectedBuilding, setSelectedBuilding] = useState(null);
@@ -652,6 +653,7 @@ export default function MapView({
             onTechBudgetChange={onTechBudgetChange}
             selectedTechCardIds={selectedTechCardIds}
             onSelectedTechCardIdsChange={onSelectedTechCardIdsChange}
+            techCardsEnabled={techCardsEnabled}
           />
         </div>
       </div>
