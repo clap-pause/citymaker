@@ -1,9 +1,21 @@
 // API 기본 URL (환경에 따라 변경)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-const OFFLINE_ACCESS_PIN = import.meta.env.VITE_ACCESS_PIN || '';
+// - 백엔드 없이 쓰려면 VITE_API_URL을 설정하지 마세요(완전 오프라인 모드).
+// - 끝의 "/" 는 제거해서 `//access-code/verify` 같은 실수를 방지
+const RAW_API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = RAW_API_BASE_URL ? String(RAW_API_BASE_URL).replace(/\/+$/, '') : '';
+const HAS_API = Boolean(API_BASE_URL);
+const OFFLINE_ACCESS_PIN = String(import.meta.env.VITE_ACCESS_PIN || '');
 
 // 세션 ID 가져오기 또는 생성
 export async function getOrCreateSession(existingSessionId = null) {
+  if (!HAS_API) {
+    let sessionId = existingSessionId || localStorage.getItem('citySessionId');
+    if (!sessionId) {
+      sessionId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('citySessionId', sessionId);
+    }
+    return { sessionId, exists: Boolean(existingSessionId), offline: true };
+  }
   try {
     const response = await fetch(`${API_BASE_URL}/session`, {
       method: 'POST',
@@ -32,6 +44,15 @@ export async function getOrCreateSession(existingSessionId = null) {
 
 // 도시 데이터 저장
 export async function saveCityData(sessionId, data) {
+  if (!HAS_API) {
+    const localData = {
+      sessionId,
+      ...data,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(`cityData_${sessionId}`, JSON.stringify(localData));
+    return { success: true, message: '로컬에 저장되었습니다 (오프라인 모드)', offline: true };
+  }
   try {
     const response = await fetch(`${API_BASE_URL}/cities`, {
       method: 'POST',
@@ -69,6 +90,14 @@ export async function saveCityData(sessionId, data) {
 
 // 도시 데이터 로드
 export async function loadCityData(sessionId) {
+  if (!HAS_API) {
+    const localData = localStorage.getItem(`cityData_${sessionId}`);
+    if (localData) {
+      const parsed = JSON.parse(localData);
+      return { ...parsed, offline: true };
+    }
+    throw new Error('도시 데이터를 찾을 수 없습니다');
+  }
   try {
     const response = await fetch(`${API_BASE_URL}/cities/${sessionId}`);
     
@@ -106,6 +135,26 @@ export async function loadCityData(sessionId) {
 
 // 도시 목록 조회
 export async function getCityList() {
+  if (!HAS_API) {
+    const localCities = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('cityData_')) {
+        try {
+          const data = JSON.parse(localStorage.getItem(key));
+          localCities.push({
+            sessionId: data.sessionId,
+            cityName: data.cityName || '로컬 도시',
+            createdAt: data.savedAt || new Date().toISOString(),
+            updatedAt: data.savedAt || new Date().toISOString(),
+          });
+        } catch (e) {
+          // 무시
+        }
+      }
+    }
+    return localCities;
+  }
   try {
     const response = await fetch(`${API_BASE_URL}/cities`);
     
@@ -140,6 +189,7 @@ export async function getCityList() {
 
 // 헬스 체크
 export async function checkServerHealth() {
+  if (!HAS_API) return false;
   try {
     const response = await fetch(`${API_BASE_URL}/health`);
     if (!response.ok) {
@@ -154,6 +204,19 @@ export async function checkServerHealth() {
 
 // 접속 코드 검증
 export async function verifyAccessCode(code) {
+  const trimmed = String(code ?? '').trim();
+
+  // 백엔드가 없는 배포(Vercel only)에서는 아예 네트워크 요청을 하지 않도록 함
+  // (잘못된 VITE_API_URL로 다른 Vercel 도메인에 요청 → CORS/리다이렉트 문제 방지)
+  if (OFFLINE_ACCESS_PIN && trimmed === OFFLINE_ACCESS_PIN.trim()) {
+    return { ok: true, offline: true, lastRotatedAt: null };
+  }
+
+  // 오프라인 모드에서 PIN이 없으면(또는 불일치면) 실패 처리
+  if (!HAS_API) {
+    return { ok: false, offline: true, lastRotatedAt: null };
+  }
+
   // 1) 서버 검증 시도
   try {
     const response = await fetch(`${API_BASE_URL}/access-code/verify`, {
@@ -161,7 +224,7 @@ export async function verifyAccessCode(code) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code: trimmed }),
     });
 
     if (!response.ok) {
@@ -172,7 +235,7 @@ export async function verifyAccessCode(code) {
     return await response.json();
   } catch (error) {
     // 2) 백엔드가 없을 때를 위한 오프라인 PIN 검증 (Vercel만 배포 시)
-    if (OFFLINE_ACCESS_PIN && String(code ?? '').trim() === String(OFFLINE_ACCESS_PIN).trim()) {
+    if (OFFLINE_ACCESS_PIN && trimmed === OFFLINE_ACCESS_PIN.trim()) {
       return { ok: true, offline: true, lastRotatedAt: null };
     }
     throw error;
@@ -181,6 +244,9 @@ export async function verifyAccessCode(code) {
 
 // 현재 접속 코드 정보 조회 (원하면 UI에서 사용할 수 있음)
 export async function getCurrentAccessCodeInfo() {
+  if (!HAS_API) {
+    throw new Error('백엔드가 없어 접속 코드 정보를 조회할 수 없습니다.');
+  }
   const response = await fetch(`${API_BASE_URL}/access-code/current`);
   if (!response.ok) {
     throw new Error('접속 코드 정보 조회 실패');

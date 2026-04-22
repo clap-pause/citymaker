@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import './MetricsDisplay.css';
 import { TECH_CARDS } from '../data/techCards';
 
@@ -28,10 +28,22 @@ export default function MetricsDisplay({
     return '개선이 필요한 도시';
   };
 
-  const normalizedSelected = Array.isArray(selectedTechCardIds) ? selectedTechCardIds.filter(Boolean).slice(0, 2) : [];
-  const selectedSet = new Set(normalizedSelected);
-  const selectedCards = normalizedSelected.map((id) => TECH_CARDS.find((c) => c.id === id)).filter(Boolean);
-  const selectedCostTotal = selectedCards.reduce((sum, c) => sum + (Number(c.cost) || 0), 0);
+  const [isTechModalOpen, setIsTechModalOpen] = useState(false);
+
+  const normalizedSelected = useMemo(
+    () => (Array.isArray(selectedTechCardIds) ? selectedTechCardIds.filter(Boolean).slice(0, 2) : []),
+    [selectedTechCardIds]
+  );
+  const selectedSet = useMemo(() => new Set(normalizedSelected), [normalizedSelected]);
+  const selectedCards = useMemo(
+    () => normalizedSelected.map((id) => TECH_CARDS.find((c) => c.id === id)).filter(Boolean),
+    [normalizedSelected]
+  );
+  const selectedCostTotal = useMemo(
+    () => selectedCards.reduce((sum, c) => sum + (Number(c.cost) || 0), 0),
+    [selectedCards]
+  );
+
   const budget = Number(techBudget) || 0;
   const remainingBudget = Math.max(0, budget - selectedCostTotal);
   const remainingSlots = Math.max(0, 2 - normalizedSelected.length);
@@ -119,41 +131,95 @@ export default function MetricsDisplay({
             </label>
           </div>
 
-          <div className="tech-card-grid">
-            {TECH_CARDS.map((card) => {
-              const isSelected = selectedSet.has(card.id);
-              const buyable = canBuy(card);
-              const disabled = !buyable;
-              return (
-                <div key={card.id} className={`tech-card ${isSelected ? 'selected' : ''}`}>
-                  <div className="tech-card-top">
-                    <div className="tech-card-title">{card.name}</div>
-                    <div className="tech-card-cost">{(card.cost / 100000000).toFixed(0)}억원</div>
-                  </div>
-                  <div className="tech-card-desc">{card.description}</div>
-                  <button
-                    type="button"
-                    className={`tech-card-action ${isSelected ? 'remove' : 'buy'}`}
-                    onClick={() => toggleTechCard(card.id)}
-                    disabled={disabled && !isSelected}
-                    title={
-                      isSelected
-                        ? '해제'
-                        : normalizedSelected.length >= 2
-                          ? '최대 2개까지 구매할 수 있어요'
-                          : (selectedCostTotal + (Number(card.cost) || 0) > budget)
-                            ? '예산이 부족해요'
-                            : '구매'
-                    }
-                  >
-                    {isSelected ? '해제' : '구매'}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+          <button
+            type="button"
+            className="tech-open-btn"
+            onClick={() => setIsTechModalOpen(true)}
+          >
+            기술 추가하기 ({normalizedSelected.length}/2)
+          </button>
+
+          {normalizedSelected.length > 0 && (
+            <div className="tech-selected-summary">
+              {selectedCards.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="tech-chip"
+                  onClick={() => toggleTechCard(c.id)}
+                  title="클릭하면 해제"
+                >
+                  {c.name} · {(c.cost / 100000000).toFixed(0)}억 ✕
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* 기술 선택 모달 */}
+      {isTechModalOpen && (
+        <div
+          className="tech-modal-overlay"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setIsTechModalOpen(false);
+          }}
+        >
+          <div className="tech-modal" role="dialog" aria-modal="true">
+            <div className="tech-modal-header">
+              <div>
+                <div className="tech-modal-title">기술 카드 선택</div>
+                <div className="tech-modal-sub">
+                  최대 2개 · 예산 {(budget / 100000000).toFixed(1)}억 (남은 {(remainingBudget / 100000000).toFixed(1)}억)
+                </div>
+              </div>
+              <button type="button" className="tech-modal-close" onClick={() => setIsTechModalOpen(false)}>
+                닫기
+              </button>
+            </div>
+
+            <div className="tech-card-grid modal">
+              {TECH_CARDS.map((card) => {
+                const isSelected = selectedSet.has(card.id);
+                const buyable = canBuy(card);
+                const disabled = !buyable;
+                return (
+                  <div key={card.id} className={`tech-card ${isSelected ? 'selected' : ''} ${disabled && !isSelected ? 'disabled' : ''}`}>
+                    <div className="tech-card-top">
+                      <div className="tech-card-title">{card.name}</div>
+                      <div className="tech-card-cost">{(card.cost / 100000000).toFixed(0)}억원</div>
+                    </div>
+                    <div className="tech-card-desc">{card.description}</div>
+                    <button
+                      type="button"
+                      className={`tech-card-action ${isSelected ? 'remove' : 'buy'}`}
+                      onClick={() => toggleTechCard(card.id)}
+                      disabled={disabled && !isSelected}
+                      title={
+                        isSelected
+                          ? '해제'
+                          : normalizedSelected.length >= 2
+                            ? '최대 2개까지 구매할 수 있어요'
+                            : (selectedCostTotal + (Number(card.cost) || 0) > budget)
+                              ? '예산이 부족해요'
+                              : '구매'
+                      }
+                    >
+                      {isSelected ? '해제' : '구매'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="tech-modal-footer">
+              <button type="button" className="tech-modal-done" onClick={() => setIsTechModalOpen(false)}>
+                선택 완료
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 건물 개발 시 지표 */}
       <div className="metrics-section">

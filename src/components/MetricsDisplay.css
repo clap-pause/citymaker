@@ -35,6 +35,43 @@
   margin-top: 12px;
 }
 
+.tech-open-btn {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 12px;
+  font-weight: 900;
+  cursor: pointer;
+  background: #111827;
+  color: #ffffff;
+  box-shadow: 0 10px 18px rgba(17, 24, 39, 0.12);
+}
+
+.tech-open-btn:hover {
+  filter: brightness(1.05);
+}
+
+.tech-selected-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tech-chip {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tech-chip:hover {
+  background: #f9fafb;
+}
+
 .tech-budget-sub {
   display: inline-block;
   margin-left: 8px;
@@ -116,6 +153,88 @@
 .tech-card-action:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.tech-card.disabled {
+  opacity: 0.75;
+}
+
+.tech-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  z-index: 9999;
+}
+
+.tech-modal {
+  width: min(920px, 100%);
+  max-height: min(86vh, 900px);
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tech-modal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.tech-modal-title {
+  font-weight: 900;
+  font-size: 1.05em;
+  color: #111827;
+}
+
+.tech-modal-sub {
+  margin-top: 4px;
+  font-size: 0.9em;
+  font-weight: 700;
+  color: #4b5563;
+}
+
+.tech-modal-close {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.tech-card-grid.modal {
+  padding: 14px 16px 16px;
+  overflow: auto;
+}
+
+.tech-modal-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tech-modal-done {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-weight: 900;
+  cursor: pointer;
+  background: #111827;
+  color: #ffffff;
 }
 
 .investment-setting label {
