@@ -25,7 +25,7 @@ export default function MapView({
   const [hoveredTile, setHoveredTile] = useState(null);
   const [draggingBuilding, setDraggingBuilding] = useState(null); // 팔레트에서 드래그 중인 buildingId
   const [draggingInstance, setDraggingInstance] = useState(null); // 맵에 배치된 건물(인스턴스) 드래그
-  const lastTapRef = useRef({ key: null, ts: 0 });
+  const longPressRef = useRef({ timer: null, fired: false });
   const [dragStartPos, setDragStartPos] = useState(null);
   const mapContainerRef = useRef(null);
   const instanceSeqRef = useRef(1);
@@ -266,37 +266,38 @@ export default function MapView({
     }
   };
 
-  // 타일 삭제 (더블 클릭/더블 탭)
-  const handleTileDoubleActivate = (block, tileX, tileY) => {
+  // 타일 삭제 (태블릿: 꾹 누르기)
+  const startLongPressRemove = (block, tileX, tileY) => {
     // 배치/드래그 중에는 오동작 방지
     if (selectedBuilding || draggingBuilding || draggingInstance) return;
     const tileKey = `${block.id}-${tileX}-${tileY}`;
     const tileData = tileBuildings[tileKey];
     if (!tileData?.instanceId) return;
 
-    const newTileBuildings = { ...tileBuildings };
-    const instanceId = tileData.instanceId;
-    for (let y = 0; y < block.height; y++) {
-      for (let x = 0; x < block.width; x++) {
-        const key = `${block.id}-${x}-${y}`;
-        if (newTileBuildings[key]?.instanceId === instanceId) {
-          delete newTileBuildings[key];
+    longPressRef.current.fired = false;
+    longPressRef.current.timer = setTimeout(() => {
+      const snapshot = { ...tileBuildings };
+      const newTileBuildings = { ...tileBuildings };
+      const instanceId = tileData.instanceId;
+      for (let y = 0; y < block.height; y++) {
+        for (let x = 0; x < block.width; x++) {
+          const key = `${block.id}-${x}-${y}`;
+          if (newTileBuildings[key]?.instanceId === instanceId) {
+            delete newTileBuildings[key];
+          }
         }
       }
-    }
-    setTileBuildings(newTileBuildings);
+      longPressRef.current.fired = true;
+      removedInstanceRef.current = { instanceId, tilesSnapshot: snapshot };
+      setTileBuildings(newTileBuildings);
+    }, 520);
   };
 
-  const handleTileTouchEnd = (block, tileX, tileY) => {
-    const key = `${block.id}-${tileX}-${tileY}`;
-    const now = Date.now();
-    const last = lastTapRef.current;
-    if (last.key === key && now - last.ts <= 320) {
-      lastTapRef.current = { key: null, ts: 0 };
-      handleTileDoubleActivate(block, tileX, tileY);
-      return;
+  const endLongPressRemove = () => {
+    if (longPressRef.current.timer) {
+      clearTimeout(longPressRef.current.timer);
+      longPressRef.current.timer = null;
     }
-    lastTapRef.current = { key, ts: now };
   };
 
   // 지표 계산
@@ -440,7 +441,7 @@ export default function MapView({
             🏗️ 3D 뷰로 전환
           </button>
           <div className="help-text" style={{ fontSize: '0.85em', color: '#4b5563', marginBottom: '10px', padding: '8px', background: '#f3f4f6', borderRadius: '6px' }}>
-            💡 팁: 건물을 더블 클릭/더블 탭하면 제거됩니다
+            💡 팁: 노트북은 우클릭, 태블릿은 건물을 꾹 누르면 제거됩니다
           </div>
           {selectedBuilding && (
             <div className="rotation-control">
@@ -641,8 +642,9 @@ export default function MapView({
                         style={finalStyle}
                         onClick={() => handleTileClick(block, x, y)}
                         onContextMenu={(e) => handleTileRightClick(e, block, x, y)}
-                        onDoubleClick={() => handleTileDoubleActivate(block, x, y)}
-                        onTouchEnd={() => handleTileTouchEnd(block, x, y)}
+                        onTouchStart={() => startLongPressRemove(block, x, y)}
+                        onTouchEnd={() => endLongPressRemove()}
+                        onTouchCancel={() => endLongPressRemove()}
                         onMouseDown={(e) => {
                           // 배치된 건물의 시작 타일을 잡고 드래그해서 이동
                           if (e.button === 0 && isBuildingStart && building && tileData?.instanceId) {
@@ -652,7 +654,7 @@ export default function MapView({
                         }}
                         onMouseEnter={() => setHoveredTile({ blockId: block.id, x, y })}
                         onMouseLeave={() => setHoveredTile(null)}
-                        title={building ? `${building.name} (${building.size}칸) - 더블 클릭으로 제거` : isExisting ? (block.id === 'block5' ? '경찰서 (기존 건물)' : block.id === 'block6' ? '학교 (기존 건물)' : '기존 건물') : '빈 공간'}
+                        title={building ? `${building.name} (${building.size}칸) - 우클릭으로 제거` : isExisting ? (block.id === 'block5' ? '경찰서 (기존 건물)' : block.id === 'block6' ? '학교 (기존 건물)' : '기존 건물') : '빈 공간'}
                       >
                         {isBuildingStart && building && (
                           <div className="building-label">
