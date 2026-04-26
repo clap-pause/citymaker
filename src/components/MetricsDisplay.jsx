@@ -8,8 +8,6 @@ export default function MetricsDisplay({
   onAffordableRatioChange,
   environmentInvestment,
   onEnvironmentInvestmentChange,
-  techBudget,
-  onTechBudgetChange,
   selectedTechCardIds,
   onSelectedTechCardIdsChange,
   techCardsEnabled = true,
@@ -30,24 +28,24 @@ export default function MetricsDisplay({
   };
 
   const [isTechModalOpen, setIsTechModalOpen] = useState(false);
+  const [expandedSelected, setExpandedSelected] = useState(() => new Set());
+  const [flippedModal, setFlippedModal] = useState(() => new Set());
 
-  const normalizedSelected = useMemo(
-    () => (Array.isArray(selectedTechCardIds) ? selectedTechCardIds.filter(Boolean).slice(0, 2) : []),
-    [selectedTechCardIds]
-  );
+  const normalizedSelected = useMemo(() => {
+    const raw = Array.isArray(selectedTechCardIds) ? selectedTechCardIds.filter(Boolean) : [];
+    // 혹시 중복/오염 데이터가 들어와도 "최대 2개" 규칙이 안정적으로 적용되게 정규화
+    const unique = [];
+    for (const id of raw) {
+      if (!unique.includes(id)) unique.push(id);
+      if (unique.length >= 2) break;
+    }
+    return unique;
+  }, [selectedTechCardIds]);
   const selectedSet = useMemo(() => new Set(normalizedSelected), [normalizedSelected]);
   const selectedCards = useMemo(
     () => normalizedSelected.map((id) => TECH_CARDS.find((c) => c.id === id)).filter(Boolean),
     [normalizedSelected]
   );
-  const selectedCostTotal = useMemo(
-    () => selectedCards.reduce((sum, c) => sum + (Number(c.coinCost) || 0), 0),
-    [selectedCards]
-  );
-
-  const budget = Number.isFinite(Number(techBudget)) ? Number(techBudget) : 0;
-  const remainingBudget = Math.max(0, budget - selectedCostTotal);
-  const remainingSlots = Math.max(0, 2 - normalizedSelected.length);
 
   const formatEffects = (effects) => {
     const ef = effects || {};
@@ -74,7 +72,7 @@ export default function MetricsDisplay({
     return lines;
   };
 
-  const normalizedCoinCost = (card) => {
+  function normalizedCoinCost(card) {
     const v = Number(card?.coinCost);
     // 요구사항: 코인은 4/5/6으로만 운영
     if (v === 4 || v === 5 || v === 6) return v;
@@ -83,7 +81,25 @@ export default function MetricsDisplay({
     if (v <= 4) return 4;
     if (v >= 6) return 6;
     return 5;
+  }
+
+  const budget = 10; // 기술 코인: 항상 10개 고정
+  // 최대 2개 선택 제한만 사용 (UI에는 노출하지 않음)
+
+  const getSelectedCostTotal = (ids) => {
+    const arr = Array.isArray(ids) ? ids : [];
+    let sum = 0;
+    for (const id of arr) {
+      const c = TECH_CARDS.find((x) => x.id === id);
+      if (!c) continue;
+      sum += normalizedCoinCost(c);
+    }
+    return sum;
   };
+
+  // 선택/비활성화 판정이 "가끔 굳어 보이는" 문제를 막기 위해
+  // 코인 합산은 memo 없이 매 렌더에서 즉시 계산한다.
+  const selectedCostTotal = getSelectedCostTotal(normalizedSelected);
 
   const toggleTechCard = (cardId) => {
     if (!techCardsEnabled) return;
@@ -91,25 +107,87 @@ export default function MetricsDisplay({
     const card = TECH_CARDS.find((c) => c.id === cardId);
     if (!card) return;
 
-    // 이미 선택됨 → 해제
-    if (selectedSet.has(cardId)) {
-      onSelectedTechCardIdsChange(normalizedSelected.filter((id) => id !== cardId));
-      return;
+    // setState 함수형 업데이트를 써서 "빠르게 연속 클릭"해도 2개 선택이 안정적으로 유지되게 함
+    onSelectedTechCardIdsChange((prev) => {
+      const current = Array.isArray(prev) ? prev.filter(Boolean).slice(0, 2) : [];
+      const currentSet = new Set(current);
+
+      // 이미 선택됨 → 해제
+      if (currentSet.has(cardId)) {
+        return current.filter((id) => id !== cardId);
+      }
+
+      // 신규 선택 제약: 최대 2개
+      if (current.length >= 2) return current;
+
+      const currentCost = getSelectedCostTotal(current);
+      const nextCost = currentCost + normalizedCoinCost(card);
+      if (nextCost > budget) return current;
+
+      return [...current, cardId];
+    });
+  };
+
+  const toggleExpanded = (where, id) => {
+    const setter = where === 'modal' ? setExpandedModal : setExpandedSelected;
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleFlipModal = (id) => {
+    setFlippedModal((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const getTechThemeVars = (id) => {
+    // 참고 이미지처럼 카드별 강한 그라데이션 테마
+    switch (id) {
+      case 'carbon_monitoring':
+        return { '--t1': '#16a34a', '--t2': '#22c55e', '--t3': '#064e3b' };
+      case 'smart_water_cycle':
+        return { '--t1': '#06b6d4', '--t2': '#3b82f6', '--t3': '#0f172a' };
+      case 'smart_power_management':
+        return { '--t1': '#f59e0b', '--t2': '#f97316', '--t3': '#7c2d12' };
+      case 'eco_plastics':
+        return { '--t1': '#ec4899', '--t2': '#fb7185', '--t3': '#881337' };
+      case 'eco_building_materials':
+        return { '--t1': '#8b5cf6', '--t2': '#6366f1', '--t3': '#312e81' };
+      case 'smart_transport':
+        return { '--t1': '#0ea5e9', '--t2': '#2563eb', '--t3': '#0f172a' };
+      case 'energy_storage':
+        return { '--t1': '#ef4444', '--t2': '#f97316', '--t3': '#7f1d1d' };
+      case 'digital_twin_city':
+        return { '--t1': '#111827', '--t2': '#334155', '--t3': '#0b1220' };
+      default:
+        return { '--t1': '#6366f1', '--t2': '#ec4899', '--t3': '#0f172a' };
     }
+  };
 
-    // 신규 구매 제약: 최대 2개, 예산 내
-    if (normalizedSelected.length >= 2) return;
-    const nextCost = selectedCostTotal + normalizedCoinCost(card);
-    if (nextCost > budget) return;
-
-    onSelectedTechCardIdsChange([...normalizedSelected, cardId]);
+  const trendLabel = (trend) => {
+    switch (trend) {
+      case 'up': return '↑';
+      case 'up2': return '↑↑';
+      case 'down': return '↓';
+      case 'down2': return '↓↓';
+      case 'same': return '→';
+      case 'mix': return '↑ / ↓';
+      default: return '→';
+    }
   };
 
   const canBuy = (card) => {
     if (!techCardsEnabled) return false;
     if (selectedSet.has(card.id)) return true; // 해제 가능
     if (normalizedSelected.length >= 2) return false;
-    const nextCost = selectedCostTotal + normalizedCoinCost(card);
+    const nextCost = getSelectedCostTotal(normalizedSelected) + normalizedCoinCost(card);
     return nextCost <= budget;
   };
 
@@ -119,6 +197,7 @@ export default function MetricsDisplay({
 
       {/* 전체 설정 */}
       <div className="global-settings">
+        <div className="settings-section-title">정책 설정</div>
         <div className="investment-setting">
           <label>
             <span>저렴한 주거 비율: {Math.round(affordableRatio * 100)}%</span>
@@ -134,7 +213,7 @@ export default function MetricsDisplay({
         </div>
         <div className="investment-setting">
           <label>
-            <span>환경 기술 투자 비용: {(environmentInvestment / 100000000).toFixed(1)}억원</span>
+            <span>환경 기술 정책 투자 비용: {(environmentInvestment / 100000000).toFixed(1)}억원</span>
             <input
               type="range"
               min="0"
@@ -148,37 +227,7 @@ export default function MetricsDisplay({
 
         {/* 기술 카드 */}
         <div className="tech-settings">
-          <div className="investment-setting">
-            <label>
-              <span>
-                기술 코인: {budget}개
-                <span className="tech-budget-sub">
-                  (남은 코인 {remainingBudget}개 · 남은 슬롯 {remainingSlots}개)
-                </span>
-              </span>
-              <input
-                type="range"
-                min="0"
-                max="10"
-                step="1"
-                value={budget}
-                onChange={(e) => {
-                  if (typeof onTechBudgetChange !== 'function') return;
-                  onTechBudgetChange(parseInt(e.target.value));
-                }}
-              />
-            </label>
-          </div>
-
-          <button
-            type="button"
-            className="tech-open-btn"
-            onClick={() => setIsTechModalOpen(true)}
-            disabled={!techCardsEnabled}
-          >
-            기술 추가하기 ({normalizedSelected.length}/2)
-          </button>
-
+          <div className="settings-section-title">기술 카드</div>
           {!techCardsEnabled && (
             <div className="tech-disabled-hint">
               현재 기술 카드 기능이 비활성화되어 있어요.
@@ -186,39 +235,51 @@ export default function MetricsDisplay({
           )}
 
           {normalizedSelected.length > 0 && (
-            <div className="tech-selected-summary">
+            <div className="tech-selected-cards">
               {selectedCards.map((c) => {
                 const effects = formatEffects(c.effects);
+                const coin = normalizedCoinCost(c);
+                const tags = Array.isArray(c.tags) ? c.tags : [];
                 return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className="tech-chip"
-                    onClick={() => toggleTechCard(c.id)}
-                    title={`${effects.join(' · ') || '효과 없음'}\n(클릭하면 해제)`}
-                  >
-                    {c.name} · 코인 {c.coinCost} ✕
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {techCardsEnabled && normalizedSelected.length > 0 && (
-            <div className="tech-selected-effects">
-              {selectedCards.map((c) => {
-                const effects = formatEffects(c.effects);
-                return (
-                  <div key={`selected-effects-${c.id}`} className="tech-selected-effect-card">
-                    <div className="tech-selected-effect-title">{c.name}</div>
-                    <div className="tech-selected-effect-body">
+                  <div key={c.id} className="tech-selected-card" style={getTechThemeVars(c.id)}>
+                    <div className="tech-selected-card-top">
+                      <div className="tech-selected-card-title">{c.name}</div>
+                      <div className={`tech-selected-card-cost coin-${coin}`}>코인 {coin}</div>
+                    </div>
+                    {tags.length > 0 && (
+                      <div className="tech-selected-tags">
+                        {tags.slice(0, 2).map((t) => (
+                          <span key={`${c.id}-${t}`} className="tech-selected-tag">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="tech-selected-card-effects">
                       {effects.length ? effects.join(' · ') : '효과 없음'}
                     </div>
+                    <button
+                      type="button"
+                      className="tech-selected-card-remove"
+                      onClick={() => toggleTechCard(c.id)}
+                      disabled={!techCardsEnabled}
+                    >
+                      선택 취소
+                    </button>
                   </div>
                 );
               })}
             </div>
           )}
+
+          <button
+            type="button"
+            className="tech-open-btn"
+            onClick={() => setIsTechModalOpen(true)}
+            disabled={!techCardsEnabled}
+          >
+            기술 추가하기
+          </button>
         </div>
       </div>
 
@@ -235,7 +296,7 @@ export default function MetricsDisplay({
               <div>
                 <div className="tech-modal-title">기술 카드 선택</div>
                 <div className="tech-modal-sub">
-                  최대 2개 · 코인 {budget}개 (남은 {remainingBudget}개)
+                  최대 2개 · 코인 10개
                 </div>
               </div>
               <button type="button" className="tech-modal-close" onClick={() => setIsTechModalOpen(false)}>
@@ -250,39 +311,83 @@ export default function MetricsDisplay({
                 const disabled = !buyable;
                 const effects = formatEffects(card.effects);
                 const coin = normalizedCoinCost(card);
-                const coreEffect = card.coreEffect ? String(card.coreEffect) : '';
+                const tags = Array.isArray(card.tags) ? card.tags : [];
+                const considerations = Array.isArray(card.considerations) ? card.considerations : [];
+                const impacts = Array.isArray(card.impacts) ? card.impacts : [];
+                const isFlipped = flippedModal.has(card.id);
                 return (
-                  <div key={card.id} className={`tech-card ${isSelected ? 'selected' : ''} ${disabled && !isSelected ? 'disabled' : ''}`}>
-                    <div className="tech-card-top">
-                      <div className="tech-card-title">{card.name}</div>
-                      <div className="tech-card-cost">코인 {coin}</div>
-                    </div>
-                    <div className="tech-card-desc">{card.description}</div>
-                    {coreEffect && <div className="tech-core-effect">{coreEffect}</div>}
-                    {effects.length > 0 && (
-                      <ul className="tech-effects">
-                        {effects.map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    )}
-                    <button
-                      type="button"
-                      className={`tech-card-action ${isSelected ? 'remove' : 'buy'}`}
-                      onClick={() => toggleTechCard(card.id)}
-                      disabled={disabled && !isSelected}
-                      title={
-                        isSelected
-                          ? '해제'
-                          : normalizedSelected.length >= 2
-                            ? '최대 2개까지 구매할 수 있어요'
-                            : (selectedCostTotal + coin > budget)
-                              ? '코인이 부족해요'
-                              : '구매'
+                  <div
+                    key={card.id}
+                    className={`tech-flip ${isSelected ? 'selected' : ''} ${disabled && !isSelected ? 'disabled' : ''} ${isFlipped ? 'flipped' : ''}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => toggleFlipModal(card.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleFlipModal(card.id);
                       }
-                    >
-                      {isSelected ? '해제' : '구매'}
-                    </button>
+                    }}
+                    title="클릭하면 카드가 뒤집혀요"
+                    style={getTechThemeVars(card.id)}
+                  >
+                    <div className="tech-flip-inner">
+                      {/* FRONT */}
+                      <div className="tech-face tech-front">
+                        <div className="tech-face-art tech-face-art-front" aria-hidden="true">
+                          <div className="tech-front-illus">
+                            <div className="tech-front-illus-ring" />
+                            <div className="tech-front-illus-card" />
+                            <div className="tech-front-illus-dot d1" />
+                            <div className="tech-front-illus-dot d2" />
+                            <div className="tech-front-illus-dot d3" />
+                          </div>
+                        </div>
+                        <div className="tech-front-content">
+                          <div className="tech-front-badges">
+                            <div className={`tech-card-cost coin-${coin}`}>코인 {coin}</div>
+                            {tags.slice(0, 2).map((t) => (
+                              <span key={`${card.id}-tag-${t}`} className="tech-front-tag">
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="tech-front-title">{card.name}</div>
+                        </div>
+                      </div>
+
+                      {/* BACK */}
+                      <div className="tech-face tech-back">
+                        <div className="tech-back-content">
+                          <div className="tech-front-badges">
+                            <div className={`tech-card-cost coin-${coin}`}>코인 {coin}</div>
+                            {tags.slice(0, 2).map((t) => (
+                              <span key={`${card.id}-btag-${t}`} className="tech-front-tag">
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="tech-front-title">{card.name}</div>
+                          <div className="tech-front-sub">{card.description}</div>
+                          <div className="tech-front-effects">
+                            특성/효과: {effects.length ? effects.join(' · ') : '효과 없음'}
+                          </div>
+
+                        <button
+                            type="button"
+                            className={`tech-select-btn ${isSelected ? 'remove' : 'buy'}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleTechCard(card.id);
+                            }}
+                            disabled={disabled && !isSelected}
+                          >
+                          {isSelected ? '선택 취소' : '선택'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 );
               })}

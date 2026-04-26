@@ -44,7 +44,6 @@ function App() {
   const [mapEnvironmentInvestment, setMapEnvironmentInvestment] = useState(0);
 
   // 기술 카드(버프) 예산/선택 (전역)
-  const [techBudget, setTechBudget] = useState(10); // 기술 코인 10개
   const [selectedTechCardIds, setSelectedTechCardIds] = useState([]);
   const [techCardsEnabled, setTechCardsEnabled] = useState(true);
 
@@ -123,16 +122,6 @@ function App() {
               setMapEnvironmentInvestment(cityData.mapEnvironmentInvestment);
             }
 
-            // 기술 카드 상태 복원
-            if (cityData.techBudget !== undefined) {
-              // 구버전(현금 단위 예산) 호환: 10억/100억 같은 값이 들어있으면 코인 10으로 마이그레이션
-              const v = Number(cityData.techBudget);
-              if (Number.isFinite(v) && v > 100) {
-                setTechBudget(10);
-              } else {
-                setTechBudget(cityData.techBudget);
-              }
-            }
             if (Array.isArray(cityData.selectedTechCardIds)) {
               setSelectedTechCardIds(cityData.selectedTechCardIds);
             }
@@ -190,7 +179,6 @@ function App() {
           environmentInvestment: blockEnvironmentInvestment,
 
           // 기술 카드
-          techBudget,
           selectedTechCardIds,
         });
         
@@ -216,7 +204,7 @@ function App() {
         clearTimeout(saveTimerRef.current);
       }
     };
-  }, [sessionId, blockBuildings, tileBuildings, blockAffordableRatio, blockEnvironmentInvestment, mapAffordableRatio, mapEnvironmentInvestment, techBudget, selectedTechCardIds, isLoading, isAuthorized]);
+  }, [sessionId, blockBuildings, tileBuildings, blockAffordableRatio, blockEnvironmentInvestment, mapAffordableRatio, mapEnvironmentInvestment, selectedTechCardIds, isLoading, isAuthorized]);
 
   // 저장된 인증(1시간) 복원
   useEffect(() => {
@@ -421,8 +409,6 @@ function App() {
               onAffordableRatioChange={setBlockAffordableRatio}
               environmentInvestment={blockEnvironmentInvestment}
               onEnvironmentInvestmentChange={setBlockEnvironmentInvestment}
-              techBudget={techBudget}
-              onTechBudgetChange={setTechBudget}
               selectedTechCardIds={selectedTechCardIds}
               onSelectedTechCardIdsChange={setSelectedTechCardIds}
               techCardsEnabled={techCardsEnabled}
@@ -449,8 +435,6 @@ function App() {
           onAffordableRatioChange={setMapAffordableRatio}
           environmentInvestment={mapEnvironmentInvestment}
           onEnvironmentInvestmentChange={setMapEnvironmentInvestment}
-          techBudget={techBudget}
-          onTechBudgetChange={setTechBudget}
           selectedTechCardIds={selectedTechCardIds}
           onSelectedTechCardIdsChange={setSelectedTechCardIds}
           techCardsEnabled={techCardsEnabled}
