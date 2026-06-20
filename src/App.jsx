@@ -49,6 +49,7 @@ function App() {
 
   // 자동 저장 타이머
   const saveTimerRef = useRef(null);
+  const AUTO_SAVE_DELAY_MS = 15000;
 
   // 지표 계산
   const metrics = useMemo(() => {
@@ -151,7 +152,7 @@ function App() {
     }
   }, [techCardsEnabled]);
 
-  // 자동 저장 (변경 후 2초 대기)
+  // 자동 저장 (변경 후 15초 대기)
   useEffect(() => {
     if (!isAuthorized) return;
 
@@ -197,7 +198,7 @@ function App() {
         setSaveStatus('저장 실패');
         setTimeout(() => setSaveStatus(''), 3000);
       }
-    }, 2000);
+    }, AUTO_SAVE_DELAY_MS);
     
     return () => {
       if (saveTimerRef.current) {
