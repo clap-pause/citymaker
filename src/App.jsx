@@ -325,6 +325,14 @@ function App() {
     setTileBuildings(newTileBuildings);
   };
 
+  // 맵 모드일 때 루트 컨테이너 전체 너비 사용 (사이드바·맵 겹침 방지)
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (!root) return;
+    root.classList.toggle('app-root--map', viewMode === 'map');
+    return () => root.classList.remove('app-root--map');
+  }, [viewMode]);
+
   // 접속 코드 입력 화면
   if (!isAuthorized) {
     return (

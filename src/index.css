@@ -18,4 +18,10 @@ body {
 #root {
   max-width: 1400px;
   margin: 0 auto;
+  width: 100%;
+}
+
+/* 맵 모드: 사이드바+맵+지표가 한 줄에 들어가도록 전체 너비 사용 */
+#root.app-root--map {
+  max-width: none;
 }

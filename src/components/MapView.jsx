@@ -408,8 +408,8 @@ export default function MapView({
             </div>
           </div>
         </div>
-        <div className="map-content-wrapper" style={{ marginRight: 0 }}>
-          <div className="map-main" style={{ width: '100%', height: '100%', margin: 0, padding: 0 }}>
+        <div className="map-content-wrapper map-content-wrapper--3d">
+          <div className="map-main map-main--3d">
             <MapView3D tileBuildings={tileBuildings} />
           </div>
         </div>
