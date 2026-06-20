@@ -20,6 +20,8 @@ export default function MapView({
   techCardsEnabled,
 }) {
   const [viewMode3D, setViewMode3D] = useState(false); // 2D/3D 뷰 전환
+  const [interactionMode, setInteractionMode] = useState('place'); // place | select | delete
+  const [selectedMapInstanceId, setSelectedMapInstanceId] = useState(null);
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [buildingRotation, setBuildingRotation] = useState(0); // 회전 각도 (0, 90, 180, 270)
   const [hoveredTile, setHoveredTile] = useState(null);
@@ -55,6 +57,7 @@ export default function MapView({
         setBuildingRotation((prev) => (prev + 90) % 360);
       }
       if (e.key === 'Escape') {
+        setSelectedMapInstanceId(null);
         // 이동 중인 인스턴스 취소(원복)
         if (removedInstanceRef.current?.tilesSnapshot) {
           setTileBuildings(removedInstanceRef.current.tilesSnapshot);
@@ -113,8 +116,108 @@ export default function MapView({
 
   // blockBuildings 동기화 제거 - 맵 배치 모드는 독립적으로 동작
 
+  // 맵에 배치된 건물(인스턴스) 메타 조회
+  const findInstanceMeta = (instanceId) => {
+    if (!instanceId) return null;
+    for (const block of MAP_LAYOUT.blocks) {
+      let anchorX = Infinity;
+      let anchorY = Infinity;
+      let buildingId = null;
+      let rotation = 0;
+      let found = false;
+
+      for (let y = 0; y < block.height; y++) {
+        for (let x = 0; x < block.width; x++) {
+          const tileData = tileBuildings[`${block.id}-${x}-${y}`];
+          if (tileData?.instanceId !== instanceId) continue;
+          found = true;
+          buildingId = tileData.buildingId;
+          rotation = tileData.rotation ?? 0;
+          if (x < anchorX || (x === anchorX && y < anchorY)) {
+            anchorX = x;
+            anchorY = y;
+          }
+        }
+      }
+
+      if (found) {
+        return { block, anchorX, anchorY, buildingId, rotation, instanceId };
+      }
+    }
+    return null;
+  };
+
+  const selectedMapInstanceMeta = useMemo(
+    () => findInstanceMeta(selectedMapInstanceId),
+    [selectedMapInstanceId, tileBuildings]
+  );
+
+  const switchInteractionMode = (mode) => {
+    setInteractionMode(mode);
+    setSelectedMapInstanceId(null);
+    if (mode !== 'place') {
+      setSelectedBuilding(null);
+      setDraggingBuilding(null);
+      setDraggingInstance(null);
+    }
+  };
+
+  const removeInstanceById = (instanceId) => {
+    const newTileBuildings = { ...tileBuildings };
+    Object.keys(newTileBuildings).forEach((key) => {
+      if (newTileBuildings[key]?.instanceId === instanceId) {
+        delete newTileBuildings[key];
+      }
+    });
+    setTileBuildings(newTileBuildings);
+  };
+
+  const handleDeleteSelectedInstance = () => {
+    if (!selectedMapInstanceId) return;
+    removeInstanceById(selectedMapInstanceId);
+    setSelectedMapInstanceId(null);
+  };
+
+  const handleRotateSelectedInstance = () => {
+    if (!selectedMapInstanceId) return;
+    const meta = findInstanceMeta(selectedMapInstanceId);
+    if (!meta) return;
+
+    const building = BUILDINGS[meta.buildingId];
+    if (!building) return;
+
+    const newRotation = (meta.rotation + 90) % 360;
+    const tilesWithoutInstance = { ...tileBuildings };
+    Object.keys(tilesWithoutInstance).forEach((key) => {
+      if (tilesWithoutInstance[key]?.instanceId === selectedMapInstanceId) {
+        delete tilesWithoutInstance[key];
+      }
+    });
+
+    if (!canPlaceBuildingAt(meta.block, meta.anchorX, meta.anchorY, building, newRotation, tilesWithoutInstance)) {
+      return;
+    }
+
+    const newTileBuildings = { ...tilesWithoutInstance };
+    const positions = getBuildingTilePositions(building, newRotation, meta.anchorX, meta.anchorY);
+    positions.forEach((pos) => {
+      newTileBuildings[`${meta.block.id}-${pos.x}-${pos.y}`] = {
+        buildingId: meta.buildingId,
+        rotation: newRotation,
+        instanceId: selectedMapInstanceId,
+      };
+    });
+    setTileBuildings(newTileBuildings);
+  };
+
   // 타일 클릭 핸들러
   const handleTileClick = (block, tileX, tileY) => {
+    if (interactionMode === 'select' || interactionMode === 'delete') {
+      const tileData = tileBuildings[`${block.id}-${tileX}-${tileY}`];
+      setSelectedMapInstanceId(tileData?.instanceId ?? null);
+      return;
+    }
+
     if (!selectedBuilding) return;
     
     const building = BUILDINGS[selectedBuilding];
@@ -153,7 +256,8 @@ export default function MapView({
   // 드래그 중
   const handleDragOver = (e) => {
     e.preventDefault();
-    if (!draggingBuilding) return;
+    if (interactionMode !== 'place') return;
+    if (!draggingBuilding && !draggingInstance) return;
     
     const rect = mapContainerRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -188,6 +292,12 @@ export default function MapView({
   // 드래그 종료
   const handleDrop = (e) => {
     e.preventDefault();
+    if (interactionMode !== 'place') {
+      setDraggingBuilding(null);
+      setDraggingInstance(null);
+      setHoveredTile(null);
+      return;
+    }
     const droppingBuildingId = draggingInstance?.buildingId || draggingBuilding;
     if (!droppingBuildingId || !hoveredTile) {
       setDraggingBuilding(null);
@@ -238,9 +348,10 @@ export default function MapView({
   };
 
 
-  // 타일 삭제 (우클릭)
+  // 타일 삭제 (우클릭 — 배치 모드에서만)
   const handleTileRightClick = (e, block, tileX, tileY) => {
     e.preventDefault();
+    if (interactionMode !== 'place') return;
     const tileKey = `${block.id}-${tileX}-${tileY}`;
     const tileData = tileBuildings[tileKey];
     
@@ -266,8 +377,9 @@ export default function MapView({
     }
   };
 
-  // 타일 삭제 (태블릿: 꾹 누르기)
+  // 타일 삭제 (태블릿: 꾹 누르기 — 배치 모드에서만)
   const startLongPressRemove = (block, tileX, tileY) => {
+    if (interactionMode !== 'place') return;
     // 배치/드래그 중에는 오동작 방지
     if (selectedBuilding || draggingBuilding || draggingInstance) return;
     const tileKey = `${block.id}-${tileX}-${tileY}`;
@@ -441,16 +553,77 @@ export default function MapView({
             🏗️ 3D 뷰로 전환
           </button>
           <div className="help-text" style={{ fontSize: '0.85em', color: '#4b5563', marginBottom: '10px', padding: '8px', background: '#f3f4f6', borderRadius: '6px' }}>
-            💡 팁: 노트북은 우클릭, 태블릿은 건물을 꾹 누르면 제거됩니다
+            💡 <strong>배치</strong>: 건물 고른 뒤 맵 터치 · <strong>선택</strong>: 건물 터치 → 회전하기 · <strong>삭제</strong>: 건물 터치 → 삭제하기
           </div>
-          {selectedBuilding && (
+
+          <div className="map-tool-modes" role="tablist" aria-label="맵 편집 모드">
+            <button
+              type="button"
+              className={`map-tool-mode-btn ${interactionMode === 'place' ? 'active' : ''}`}
+              onClick={() => switchInteractionMode('place')}
+            >
+              배치
+            </button>
+            <button
+              type="button"
+              className={`map-tool-mode-btn ${interactionMode === 'select' ? 'active' : ''}`}
+              onClick={() => switchInteractionMode('select')}
+            >
+              선택
+            </button>
+            <button
+              type="button"
+              className={`map-tool-mode-btn ${interactionMode === 'delete' ? 'active' : ''}`}
+              onClick={() => switchInteractionMode('delete')}
+            >
+              삭제
+            </button>
+          </div>
+
+          {interactionMode === 'place' && selectedBuilding && (
             <div className="rotation-control">
-              <button onClick={handleRotate} className="rotate-btn">
-                🔄 회전 ({buildingRotation}°)
+              <button type="button" onClick={handleRotate} className="rotate-btn">
+                🔄 배치 회전 ({buildingRotation}°)
               </button>
             </div>
           )}
-          {Object.entries(BUILDINGS_BY_CATEGORY).map(([category, buildingIds]) => (
+
+          {interactionMode === 'select' && (
+            <div className="map-instance-action map-instance-action--select">
+              {selectedMapInstanceMeta ? (
+                <>
+                  <p className="map-instance-action-label">
+                    선택: <strong>{BUILDINGS[selectedMapInstanceMeta.buildingId]?.name}</strong>
+                    ({selectedMapInstanceMeta.rotation}°)
+                  </p>
+                  <button type="button" className="map-action-btn map-action-btn--rotate" onClick={handleRotateSelectedInstance}>
+                    회전하기
+                  </button>
+                </>
+              ) : (
+                <p className="map-instance-action-hint">맵에서 회전할 건물을 터치하세요</p>
+              )}
+            </div>
+          )}
+
+          {interactionMode === 'delete' && (
+            <div className="map-instance-action map-instance-action--delete">
+              {selectedMapInstanceMeta ? (
+                <>
+                  <p className="map-instance-action-label">
+                    선택: <strong>{BUILDINGS[selectedMapInstanceMeta.buildingId]?.name}</strong>
+                  </p>
+                  <button type="button" className="map-action-btn map-action-btn--delete" onClick={handleDeleteSelectedInstance}>
+                    삭제하기
+                  </button>
+                </>
+              ) : (
+                <p className="map-instance-action-hint">맵에서 삭제할 건물을 터치하세요</p>
+              )}
+            </div>
+          )}
+
+          {interactionMode === 'place' && Object.entries(BUILDINGS_BY_CATEGORY).map(([category, buildingIds]) => (
             <div key={category} className="building-category-section">
               <h4>
                 {category === 'commercial' && '상업 공간'}
@@ -467,8 +640,10 @@ export default function MapView({
                       key={buildingId}
                       className={`building-item ${selectedBuilding === buildingId ? 'selected' : ''}`}
                       onClick={() => {
+                        switchInteractionMode('place');
                         setSelectedBuilding(buildingId);
                         setBuildingRotation(0);
+                        setSelectedMapInstanceId(null);
                       }}
                       draggable
                       onDragStart={(e) => handleDragStart(e, buildingId)}
@@ -545,8 +720,15 @@ export default function MapView({
                     const isHovered = hoveredTile?.blockId === block.id && 
                       hoveredTile?.x === x && hoveredTile?.y === y;
                     
-                    // 드래그 중이거나 선택된 건물이 있을 때 프리뷰 계산
-                    const previewBuilding = selectedBuilding || draggingBuilding || draggingInstance?.buildingId;
+                    const isMapInstanceSelected =
+                      tileData?.instanceId &&
+                      tileData.instanceId === selectedMapInstanceId;
+
+                    // 드래그 중이거나 선택된 건물이 있을 때 프리뷰 계산 (배치 모드만)
+                    const previewBuilding =
+                      interactionMode === 'place'
+                        ? selectedBuilding || draggingBuilding || draggingInstance?.buildingId
+                        : null;
                     const previewRotation = draggingInstance?.rotation ?? buildingRotation;
                     
                     // 프리뷰 타일 계산 (호버된 타일을 기준으로 건물 전체 모양 계산)
@@ -638,7 +820,7 @@ export default function MapView({
                     return (
                       <div
                         key={`${x}-${y}`}
-                        className={`map-tile ${isExisting ? (existingClass || 'existing') : ''} ${building ? 'has-building' : ''} ${isPreview ? (canPlacePreview ? 'preview-valid' : 'preview-invalid') : ''}`}
+                        className={`map-tile ${isExisting ? (existingClass || 'existing') : ''} ${building ? 'has-building' : ''} ${isPreview ? (canPlacePreview ? 'preview-valid' : 'preview-invalid') : ''} ${isMapInstanceSelected ? (interactionMode === 'delete' ? 'map-instance-selected-delete' : 'map-instance-selected') : ''}`}
                         style={finalStyle}
                         onClick={() => handleTileClick(block, x, y)}
                         onContextMenu={(e) => handleTileRightClick(e, block, x, y)}
@@ -646,6 +828,7 @@ export default function MapView({
                         onTouchEnd={() => endLongPressRemove()}
                         onTouchCancel={() => endLongPressRemove()}
                         onMouseDown={(e) => {
+                          if (interactionMode !== 'place') return;
                           // 배치된 건물의 시작 타일을 잡고 드래그해서 이동
                           if (e.button === 0 && isBuildingStart && building && tileData?.instanceId) {
                             e.preventDefault();
@@ -654,7 +837,21 @@ export default function MapView({
                         }}
                         onMouseEnter={() => setHoveredTile({ blockId: block.id, x, y })}
                         onMouseLeave={() => setHoveredTile(null)}
-                        title={building ? `${building.name} (${building.size}칸) - 우클릭으로 제거` : isExisting ? (block.id === 'block5' ? '경찰서 (기존 건물)' : block.id === 'block6' ? '학교 (기존 건물)' : '기존 건물') : '빈 공간'}
+                        title={
+                          isMapInstanceSelected
+                            ? `${building?.name || '건물'} — ${interactionMode === 'delete' ? '삭제하기 버튼을 누르세요' : '회전하기 버튼을 누르세요'}`
+                            : building
+                              ? `${building.name} (${building.size}칸)`
+                              : isExisting
+                                ? (block.id === 'block5' ? '경찰서 (기존 건물)' : block.id === 'block6' ? '학교 (기존 건물)' : '기존 건물')
+                                : interactionMode === 'place' && selectedBuilding
+                                  ? '터치하여 배치'
+                                  : interactionMode === 'select'
+                                    ? '회전할 건물 터치'
+                                    : interactionMode === 'delete'
+                                      ? '삭제할 건물 터치'
+                                      : '빈 공간'
+                        }
                       >
                         {isBuildingStart && building && (
                           <div className="building-label">
